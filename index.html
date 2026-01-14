@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>에이원 화재감지 시스템</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              // 다크모드용 커스텀 컬러 팔레트 (필요시 확장)
+              dark: {
+                bg: '#0f172a', // slate-900
+                surface: '#1e293b', // slate-800
+                border: '#334155', // slate-700
+                text: '#f1f5f9', // slate-100
+                muted: '#94a3b8', // slate-400
+              }
+            },
+            fontSize: {
+              // 폰트 사이즈 일괄 축소 (1pt ≈ 1.33px)
+              'xs': ['11pt', { lineHeight: '1.4' }],
+              'sm': ['12pt', { lineHeight: '1.5' }],
+              'base': ['14pt', { lineHeight: '1.6' }],
+              'lg': ['16pt', { lineHeight: '1.6' }],
+              'xl': ['18pt', { lineHeight: '1.5' }],
+              '2xl': ['20pt', { lineHeight: '1.3' }],
+              '3xl': ['24pt', { lineHeight: '1.2' }],
+            }
+          }
+        }
+      }
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+      body {
+        font-family: 'Noto Sans KR', sans-serif;
+        background-color: #0f172a; /* Slate 900 */
+        color: #e2e8f0; /* Slate 200 */
+        font-size: 12pt; 
+      }
+      /* Custom scrollbar for table containers - Dark Mode */
+      .custom-scrollbar::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+      }
+      .custom-scrollbar::-webkit-scrollbar-track {
+        background: #1e293b; /* Slate 800 */
+      }
+      .custom-scrollbar::-webkit-scrollbar-thumb {
+        background: #475569; /* Slate 600 */
+        border-radius: 4px;
+      }
+      .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+        background: #64748b; /* Slate 500 */
+      }
+    </style>
+  <script type="importmap">
+{
+  "imports": {
+    "react-router-dom": "https://esm.sh/react-router-dom@^7.12.0",
+    "react/": "https://esm.sh/react@^19.2.3/",
+    "react": "https://esm.sh/react@^19.2.3",
+    "lucide-react": "https://esm.sh/lucide-react@^0.562.0",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
+    "xlsx": "https://esm.sh/xlsx@0.18.5"
+  }
+}
+</script>
+<!-- 다음 우편번호 서비스 스크립트 -->
+<script src="//t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js"></script>
+</head>
+  <body>
+    <div id="root"></div>
+  </body>
+</html>
