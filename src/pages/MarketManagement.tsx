@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   PageHeader, SearchFilterBar, InputGroup, SelectGroup,
   Button, DataTable, Pagination, ActionBar, FormSection, FormRow, Column, AddressInput, UI_STYLES
@@ -6,6 +6,7 @@ import {
 import { Market, Distributor } from '../types';
 import { MarketAPI, DistributorAPI } from '../services/api';
 import { exportToExcel } from '../utils/excel';
+import { X, Paperclip } from 'lucide-react';
 
 const ITEMS_PER_PAGE = 10;
 
@@ -28,11 +29,12 @@ export const MarketManagement: React.FC = () => {
   const [isFiltered, setIsFiltered] = useState(false);
   
   // --- 폼 입력 상태 (Form Input State) ---
-  // 기본 정보
   const [formData, setFormData] = useState<Partial<Market>>({});
   
   // 이미지 파일 상태
   const [mapImageFile, setMapImageFile] = useState<File | null>(null);
+  // 파일 입력 요소 참조 (초기화용)
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // SMS 목록 관리 (Edit Mode 전용)
   const [smsFireList, setSmsFireList] = useState<string[]>([]);
@@ -103,7 +105,7 @@ export const MarketManagement: React.FC = () => {
   // --- Form Handlers ---
   const handleRegister = () => { 
     setSelectedMarket(null);
-    // 폼 초기화 (기본값 설정)
+    // 폼 초기화
     setFormData({
       distributorId: undefined,
       name: '',
@@ -126,7 +128,8 @@ export const MarketManagement: React.FC = () => {
     });
     setSmsFireList([]);
     setSmsFaultList([]);
-    setMapImageFile(null); // 파일 초기화
+    setMapImageFile(null); 
+    if (fileInputRef.current) fileInputRef.current.value = ''; // 파일 입력 초기화
     setView('form'); 
   };
   
@@ -135,27 +138,61 @@ export const MarketManagement: React.FC = () => {
     setFormData({ ...market });
     setSmsFireList(market.smsFire || []);
     setSmsFaultList(market.smsFault || []);
-    setMapImageFile(null); // 파일 초기화
+    setMapImageFile(null);
+    if (fileInputRef.current) fileInputRef.current.value = ''; // 파일 입력 초기화
     setView('form'); 
   };
   
+  // [규칙 3] 이미지가 등록된 상태에서 '파일 선택' 클릭 시 경고
+  const handleFileClick = (e: React.MouseEvent<HTMLInputElement>) => {
+    // 이미 DB에 저장된 이미지가 있거나(formData.mapImage), 현재 선택된 파일이 있으면(mapImageFile)
+    if (formData.mapImage || mapImageFile) {
+      e.preventDefault(); // 파일 선택창 열림 방지
+      alert("등록된 이미지를 삭제해 주세요.");
+    }
+  };
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       setMapImageFile(e.target.files[0]);
     }
   };
 
+  // [규칙 2] 이미지 삭제 처리 (X 버튼)
+  const handleRemoveFile = () => {
+    if (confirm("이미지를 삭제하시겠습니까?")) {
+        setFormData({ ...formData, mapImage: undefined }); // DB URL 제거
+        setMapImageFile(null); // 새로 선택한 파일 제거
+        if (fileInputRef.current) fileInputRef.current.value = ''; // input value 초기화
+    }
+  };
+
+  // [규칙 4] 이미지 파일 다운로드 (파일명 클릭)
+  const getFileName = () => {
+     if (mapImageFile) return mapImageFile.name;
+     if (formData.mapImage) {
+        try {
+           // URL에서 파일명만 추출 및 디코딩
+           const url = new URL(formData.mapImage);
+           return decodeURIComponent(url.pathname.split('/').pop() || 'image.jpg');
+        } catch {
+           return '시장지도_이미지.jpg';
+        }
+     }
+     return '';
+  };
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // 필수값 검증 (총판, 시장명, 주소)
+    // 필수값 검증
     if (!formData.distributorId) { alert('총판을 선택해주세요.'); return; }
     if (!formData.name) { alert('시장명을 입력해주세요.'); return; }
     if (!formData.address) { alert('주소를 입력해주세요.'); return; }
 
     try {
       // 1. 이미지 업로드 처리
-      let uploadedImageUrl = formData.mapImage; // 기존 이미지 유지
+      let uploadedImageUrl = formData.mapImage; // 기존 이미지 URL 유지
       if (mapImageFile) {
         uploadedImageUrl = await MarketAPI.uploadMapImage(mapImageFile);
       }
@@ -174,7 +211,7 @@ export const MarketManagement: React.FC = () => {
         id: selectedMarket?.id || 0,
         smsFire: smsFireList,
         smsFault: smsFaultList,
-        mapImage: uploadedImageUrl, // 업로드된 이미지 URL 적용
+        mapImage: uploadedImageUrl, // 최종 이미지 URL 적용
         status: selectedMarket?.status || 'Normal',
       };
 
@@ -218,7 +255,7 @@ export const MarketManagement: React.FC = () => {
       '주소': `${m.address} ${m.addressDetail || ''}`,
       '담당자': m.managerName,
       '담당자전화': m.managerPhone,
-      '상태': m.usageStatus || '사용' // 설정상태
+      '상태': m.usageStatus || '사용'
     }));
     exportToExcel(excelData, '시장관리_목록');
   };
@@ -227,7 +264,6 @@ export const MarketManagement: React.FC = () => {
   const columns: Column<Market>[] = [
     { header: 'No', accessor: 'id', width: '60px' },
     { header: '총판명', accessor: (m) => {
-       // distributorId로 이름 찾기 (옵션 목록에서)
        const dist = distributorOptions.find(d => d.value === m.distributorId);
        return dist ? dist.label : '-';
     }},
@@ -331,23 +367,37 @@ export const MarketManagement: React.FC = () => {
                 />
               </FormRow>
 
-              {/* 시장지도 이미지 (등록/수정 모드 공통) */}
+              {/* 시장지도 이미지 (단일 파일 등록 규칙 적용) */}
               <FormRow label="시장지도이미지" className="col-span-1 md:col-span-2">
                 {selectedMarket && <p className="text-xs text-red-400 mb-2">* 등록 후 수정 시에만 추가 가능</p>}
-                <div className="flex gap-2 w-full">
+                
+                <div className="flex flex-col gap-2 w-full">
+                   {/* 파일 입력 창 (파일이 있으면 클릭 방지) */}
                    <InputGroup 
+                      ref={fileInputRef}
                       type="file" 
                       onChange={handleFileChange}
-                      className="border-0 p-0 text-slate-300 flex-1" 
+                      onClick={handleFileClick}
+                      className="border-0 p-0 text-slate-300 w-full" 
                    />
-                   {/* '업로드' 또는 '추가' 버튼은 UI상 보여주기만 하고 실제 로직은 저장(handleSave) 시 처리 */}
-                   <Button type="button" variant="secondary" className="whitespace-nowrap">
-                     {selectedMarket ? '추가' : '업로드'}
-                   </Button>
+
+                   {/* [규칙 2, 4] 파일이 존재할 경우: 파일명(다운로드 링크) + X 버튼 표시 */}
+                   {(formData.mapImage || mapImageFile) && (
+                      <div className="flex items-center gap-2 p-2 bg-slate-700/50 rounded border border-slate-600 w-fit">
+                         <Paperclip size={14} className="text-slate-400" />
+                         <span 
+                            onClick={() => formData.mapImage && window.open(formData.mapImage, '_blank')}
+                            className={`text-sm ${formData.mapImage ? 'text-blue-400 cursor-pointer hover:underline' : 'text-slate-300'}`}
+                            title={formData.mapImage ? "클릭하여 다운로드" : "저장 전 파일입니다"}
+                         >
+                            {getFileName()}
+                         </span>
+                         <button type="button" onClick={handleRemoveFile} className="text-red-400 hover:text-red-300 ml-2 p-1 rounded hover:bg-slate-600 transition-colors">
+                            <X size={16} />
+                         </button>
+                      </div>
+                   )}
                 </div>
-                {formData.mapImage && (
-                  <p className="text-xs text-blue-400 mt-1">현재 등록된 이미지: {formData.mapImage.split('/').pop()}</p>
-                )}
               </FormRow>
 
               {/* --- 수정 모드 전용 항목 (SMS) --- */}
@@ -363,7 +413,6 @@ export const MarketManagement: React.FC = () => {
                              value={tempSmsFire}
                              onChange={(e) => setTempSmsFire(e.target.value)}
                            />
-                           {/* SMS 추가 버튼: 시장지도이미지 추가 버튼과 스타일 통일 */}
                            <Button type="button" variant="secondary" onClick={() => addSms('fire')} className="whitespace-nowrap">추가</Button>
                         </div>
                         <div className="bg-slate-900 border border-slate-600 rounded p-2 max-h-32 overflow-y-auto custom-scrollbar">
@@ -388,7 +437,6 @@ export const MarketManagement: React.FC = () => {
                              value={tempSmsFault}
                              onChange={(e) => setTempSmsFault(e.target.value)}
                            />
-                           {/* SMS 추가 버튼: 시장지도이미지 추가 버튼과 스타일 통일 */}
                            <Button type="button" variant="secondary" onClick={() => addSms('fault')} className="whitespace-nowrap">추가</Button>
                         </div>
                         <div className="bg-slate-900 border border-slate-600 rounded p-2 max-h-32 overflow-y-auto custom-scrollbar">
