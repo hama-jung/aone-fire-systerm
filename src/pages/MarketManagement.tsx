@@ -31,6 +31,9 @@ export const MarketManagement: React.FC = () => {
   // 기본 정보
   const [formData, setFormData] = useState<Partial<Market>>({});
   
+  // 이미지 파일 상태
+  const [mapImageFile, setMapImageFile] = useState<File | null>(null);
+
   // SMS 목록 관리 (Edit Mode 전용)
   const [smsFireList, setSmsFireList] = useState<string[]>([]);
   const [smsFaultList, setSmsFaultList] = useState<string[]>([]);
@@ -123,6 +126,7 @@ export const MarketManagement: React.FC = () => {
     });
     setSmsFireList([]);
     setSmsFaultList([]);
+    setMapImageFile(null); // 파일 초기화
     setView('form'); 
   };
   
@@ -131,9 +135,16 @@ export const MarketManagement: React.FC = () => {
     setFormData({ ...market });
     setSmsFireList(market.smsFire || []);
     setSmsFaultList(market.smsFault || []);
+    setMapImageFile(null); // 파일 초기화
     setView('form'); 
   };
   
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      setMapImageFile(e.target.files[0]);
+    }
+  };
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -142,34 +153,37 @@ export const MarketManagement: React.FC = () => {
     if (!formData.name) { alert('시장명을 입력해주세요.'); return; }
     if (!formData.address) { alert('주소를 입력해주세요.'); return; }
 
-    // 선택 입력 항목의 빈 문자열 처리
-    // DB의 숫자 필드나 날짜 필드 등에 빈 문자열이 들어가면 오류가 발생할 수 있으므로
-    // 값이 없는 경우(빈 문자열 등) undefined나 null로 변환하여 전송합니다.
-    const cleanFormData = { ...formData };
-    if (cleanFormData.latitude === '') cleanFormData.latitude = undefined;
-    if (cleanFormData.longitude === '') cleanFormData.longitude = undefined;
-    if (cleanFormData.managerName === '') cleanFormData.managerName = undefined;
-    if (cleanFormData.managerPhone === '') cleanFormData.managerPhone = undefined;
-    if (cleanFormData.managerEmail === '') cleanFormData.managerEmail = undefined;
-    if (cleanFormData.memo === '') cleanFormData.memo = undefined;
-
-    const newMarket: Market = {
-      ...cleanFormData as Market,
-      id: selectedMarket?.id || 0,
-      smsFire: smsFireList,
-      smsFault: smsFaultList,
-      // operational status는 기존 값 유지하거나 Normal로 초기화
-      status: selectedMarket?.status || 'Normal',
-    };
-
     try {
+      // 1. 이미지 업로드 처리
+      let uploadedImageUrl = formData.mapImage; // 기존 이미지 유지
+      if (mapImageFile) {
+        uploadedImageUrl = await MarketAPI.uploadMapImage(mapImageFile);
+      }
+
+      // 2. 선택 입력 항목의 빈 문자열 처리
+      const cleanFormData = { ...formData };
+      if (cleanFormData.latitude === '') cleanFormData.latitude = undefined;
+      if (cleanFormData.longitude === '') cleanFormData.longitude = undefined;
+      if (cleanFormData.managerName === '') cleanFormData.managerName = undefined;
+      if (cleanFormData.managerPhone === '') cleanFormData.managerPhone = undefined;
+      if (cleanFormData.managerEmail === '') cleanFormData.managerEmail = undefined;
+      if (cleanFormData.memo === '') cleanFormData.memo = undefined;
+
+      const newMarket: Market = {
+        ...cleanFormData as Market,
+        id: selectedMarket?.id || 0,
+        smsFire: smsFireList,
+        smsFault: smsFaultList,
+        mapImage: uploadedImageUrl, // 업로드된 이미지 URL 적용
+        status: selectedMarket?.status || 'Normal',
+      };
+
       await MarketAPI.save(newMarket);
       alert('저장되었습니다.');
       setView('list');
       fetchMarkets();
     } catch (e: any) {
       console.error(e);
-      // 에러 메시지를 사용자에게 보여줌으로써 원인 파악 용이
       alert(`저장 실패: ${e.message || '알 수 없는 오류가 발생했습니다.'}`);
     }
   };
@@ -317,7 +331,26 @@ export const MarketManagement: React.FC = () => {
                 />
               </FormRow>
 
-              {/* --- 수정 모드 전용 항목 (SMS, 이미지) --- */}
+              {/* 시장지도 이미지 (등록/수정 모드 공통) */}
+              <FormRow label="시장지도이미지" className="col-span-1 md:col-span-2">
+                {selectedMarket && <p className="text-xs text-red-400 mb-2">* 등록 후 수정 시에만 추가 가능</p>}
+                <div className="flex gap-2 w-full">
+                   <InputGroup 
+                      type="file" 
+                      onChange={handleFileChange}
+                      className="border-0 p-0 text-slate-300 flex-1" 
+                   />
+                   {/* '업로드' 또는 '추가' 버튼은 UI상 보여주기만 하고 실제 로직은 저장(handleSave) 시 처리 */}
+                   <Button type="button" variant="secondary" className="whitespace-nowrap">
+                     {selectedMarket ? '추가' : '업로드'}
+                   </Button>
+                </div>
+                {formData.mapImage && (
+                  <p className="text-xs text-blue-400 mt-1">현재 등록된 이미지: {formData.mapImage.split('/').pop()}</p>
+                )}
+              </FormRow>
+
+              {/* --- 수정 모드 전용 항목 (SMS) --- */}
               {selectedMarket && (
                 <>
                    {/* 화재발생시 SMS */}
@@ -330,7 +363,8 @@ export const MarketManagement: React.FC = () => {
                              value={tempSmsFire}
                              onChange={(e) => setTempSmsFire(e.target.value)}
                            />
-                           <Button type="button" onClick={() => addSms('fire')}>추가</Button>
+                           {/* SMS 추가 버튼: 시장지도이미지 추가 버튼과 스타일 통일 */}
+                           <Button type="button" variant="secondary" onClick={() => addSms('fire')} className="whitespace-nowrap">추가</Button>
                         </div>
                         <div className="bg-slate-900 border border-slate-600 rounded p-2 max-h-32 overflow-y-auto custom-scrollbar">
                            {smsFireList.length === 0 && <span className="text-slate-500 text-sm">등록된 번호가 없습니다.</span>}
@@ -354,7 +388,8 @@ export const MarketManagement: React.FC = () => {
                              value={tempSmsFault}
                              onChange={(e) => setTempSmsFault(e.target.value)}
                            />
-                           <Button type="button" onClick={() => addSms('fault')}>추가</Button>
+                           {/* SMS 추가 버튼: 시장지도이미지 추가 버튼과 스타일 통일 */}
+                           <Button type="button" variant="secondary" onClick={() => addSms('fault')} className="whitespace-nowrap">추가</Button>
                         </div>
                         <div className="bg-slate-900 border border-slate-600 rounded p-2 max-h-32 overflow-y-auto custom-scrollbar">
                            {smsFaultList.length === 0 && <span className="text-slate-500 text-sm">등록된 번호가 없습니다.</span>}
@@ -365,15 +400,6 @@ export const MarketManagement: React.FC = () => {
                              </div>
                            ))}
                         </div>
-                      </div>
-                   </FormRow>
-
-                   {/* 시장지도 이미지 */}
-                   <FormRow label="시장지도이미지" className="col-span-1 md:col-span-2">
-                      <p className="text-xs text-red-400 mb-2">* 등록 후 수정 시에만 추가 가능</p>
-                      <div className="flex gap-2 w-full">
-                         <InputGroup type="file" className="border-0 p-0 text-slate-300 flex-1" />
-                         <Button type="button" variant="secondary">추가</Button>
                       </div>
                    </FormRow>
                 </>

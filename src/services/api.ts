@@ -189,6 +189,30 @@ export const MarketAPI = {
     return data || [];
   },
 
+  uploadMapImage: async (file: File): Promise<string> => {
+    // 1. 파일명 생성 (충돌 방지를 위해 타임스탬프 추가)
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
+    const filePath = `maps/${fileName}`;
+
+    // 2. Supabase Storage에 업로드 (버킷명: 'market-maps')
+    const { error: uploadError } = await supabase.storage
+      .from('market-maps')
+      .upload(filePath, file);
+
+    if (uploadError) {
+      console.error('Image Upload Error:', uploadError);
+      throw new Error('이미지 업로드에 실패했습니다.');
+    }
+
+    // 3. 공개 URL 가져오기
+    const { data } = supabase.storage
+      .from('market-maps')
+      .getPublicUrl(filePath);
+
+    return data.publicUrl;
+  },
+
   save: async (market: Market) => {
     // 변환 로직 제거: 프론트엔드의 Market 객체 그대로 DB에 전송
     // (distributorId 등 CamelCase 필드명이 DB 컬럼명과 일치한다고 가정)
