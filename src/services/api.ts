@@ -4,7 +4,6 @@ import { User, RoleItem, Market, Distributor } from '../types';
 /**
  * [Supabase 연동 완료]
  * 이제 메모리(MOCK) 데이터 대신 실제 Supabase DB와 통신합니다.
- * UI 코드는 변경할 필요가 없습니다.
  */
 
 // --- Helper: 에러 처리 ---
@@ -13,63 +12,24 @@ const handleError = (error: any) => {
   throw new Error(error.message || "데이터 처리 중 오류가 발생했습니다.");
 };
 
-// --- Helper: Market Data Mapping (CamelCase <-> SnakeCase) ---
-// DB는 보통 snake_case를 사용하고, Frontend는 camelCase를 사용하므로 변환이 필요합니다.
-// 기존 필드(managerName 등)가 camelCase로 되어 있는 경우를 대비해 혼용을 방지합니다.
-// 여기서는 '새로 추가된 필드' 위주로 snake_case 매핑을 적용하고, 
-// 기존 필드(managerName 등)는 기존 DB 스키마가 camelCase일 가능성을 염두에 둡니다.
-// 단, 오류가 발생한 distributorId는 distributor_id로 매핑합니다.
+// --- Helper: Market Data Mapping ---
+// DB의 'distributor_id' 컬럼과 Frontend의 'distributorId' 간의 매핑만 처리하고,
+// 나머지 필드는 Frontend 변수명(camelCase)을 그대로 사용하여 DB 컬럼과 매칭시킵니다.
+// (addressDetail, managerName 등이 DB에 camelCase로 존재한다고 가정)
 
 const marketToDB = (market: Market) => {
-  // DB에 보낼 때는 snake_case로 변환 (필요한 필드만)
-  const { 
-    distributorId, managerEmail, enableMarketSms, enableStoreSms, 
-    enableMultiMedia, multiMediaType, usageStatus, enableDeviceFaultSms, 
-    enableCctvUrl, smsFire, smsFault, mapImage, 
-    addressDetail, zipCode,
-    ...rest 
-  } = market;
-
+  const { distributorId, ...rest } = market;
   return {
     ...rest,
-    distributor_id: distributorId,         // distributorId -> distributor_id
-    manager_email: managerEmail,           // managerEmail -> manager_email
-    address_detail: addressDetail,         // addressDetail -> address_detail
-    zip_code: zipCode,                     // zipCode -> zip_code
-    enable_market_sms: enableMarketSms,
-    enable_store_sms: enableStoreSms,
-    enable_multi_media: enableMultiMedia,
-    multi_media_type: multiMediaType,
-    usage_status: usageStatus,
-    enable_device_fault_sms: enableDeviceFaultSms,
-    enable_cctv_url: enableCctvUrl,
-    sms_fire: smsFire,
-    sms_fault: smsFault,
-    map_image: mapImage,
-    // 기존 managerName, managerPhone 등은 DB 스키마에 따라 camelCase 유지 가능성 있음.
-    // 만약 DB도 전부 snake_case라면 여기서 manager_name: market.managerName 등으로 추가 매핑 필요.
-    // 현재는 에러가 난 distributorId 위주로 처리.
+    distributor_id: distributorId, // FK만 snake_case로 변환
   };
 };
 
 const dbToMarket = (dbRow: any): Market => {
-  // DB에서 받을 때는 camelCase로 복원
+  const { distributor_id, ...rest } = dbRow;
   return {
-    ...dbRow,
-    distributorId: dbRow.distributor_id || dbRow.distributorId,
-    managerEmail: dbRow.manager_email || dbRow.managerEmail,
-    addressDetail: dbRow.address_detail || dbRow.addressDetail,
-    zipCode: dbRow.zip_code || dbRow.zipCode,
-    enableMarketSms: dbRow.enable_market_sms || dbRow.enableMarketSms,
-    enableStoreSms: dbRow.enable_store_sms || dbRow.enableStoreSms,
-    enableMultiMedia: dbRow.enable_multi_media || dbRow.enableMultiMedia,
-    multiMediaType: dbRow.multi_media_type || dbRow.multiMediaType,
-    usageStatus: dbRow.usage_status || dbRow.usageStatus,
-    enableDeviceFaultSms: dbRow.enable_device_fault_sms || dbRow.enableDeviceFaultSms,
-    enableCctvUrl: dbRow.enable_cctv_url || dbRow.enableCctvUrl,
-    smsFire: dbRow.sms_fire || dbRow.smsFire,
-    smsFault: dbRow.sms_fault || dbRow.smsFault,
-    mapImage: dbRow.map_image || dbRow.mapImage,
+    ...rest,
+    distributorId: distributor_id, // FK만 camelCase로 복원
   };
 };
 
@@ -237,21 +197,19 @@ export const MarketAPI = {
   getList: async (params?: { name?: string, address?: string, managerName?: string }) => {
     let query = supabase.from('markets').select('*').order('id', { ascending: false });
 
-    // 검색 조건 (DB 컬럼명이 snake_case일 수도 있고 camelCase일 수도 있음. 
-    // 기존 코드가 camelCase였으므로 그대로 유지하되, 필요시 DB 컬럼명 확인 필요)
     if (params?.name) query = query.ilike('name', `%${params.name}%`);
     if (params?.address) query = query.ilike('address', `%${params.address}%`);
+    // DB 컬럼이 managerName이라고 가정 (에러가 발생하지 않았다면)
     if (params?.managerName) query = query.ilike('managerName', `%${params.managerName}%`);
 
     const { data, error } = await query;
     if (error) handleError(error);
 
-    // DB 데이터를 프론트엔드 포맷으로 변환
     return (data || []).map(dbToMarket);
   },
 
   save: async (market: Market) => {
-    // 프론트엔드 데이터를 DB 포맷(snake_case)으로 변환
+    // 프론트엔드 데이터를 DB 포맷으로 변환 (distributor_id만 처리)
     const dbPayload = marketToDB(market);
 
     if (market.id === 0) {
