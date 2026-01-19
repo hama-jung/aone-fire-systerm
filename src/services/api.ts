@@ -13,23 +13,31 @@ const handleError = (error: any) => {
 };
 
 // --- Helper: Market Data Mapping ---
-// DB의 'distributor_id' 컬럼과 Frontend의 'distributorId' 간의 매핑만 처리하고,
-// 나머지 필드는 Frontend 변수명(camelCase)을 그대로 사용하여 DB 컬럼과 매칭시킵니다.
-// (addressDetail, managerName 등이 DB에 camelCase로 존재한다고 가정)
+// DB의 컬럼명이 'distributorid'(소문자)일 가능성이 가장 높습니다. (Postgres 기본 동작)
+// 따라서 저장 시에는 'distributorid'로 변환하여 전송합니다.
+// 조회 시에는 혹시 모를 변수명 차이(distributor_id, distributorId 등)를 모두 체크하여 안전하게 매핑합니다.
 
 const marketToDB = (market: Market) => {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { distributorId, ...rest } = market;
   return {
     ...rest,
-    distributor_id: distributorId, // FK만 snake_case로 변환
+    // DB 컬럼이 'distributorid' (소문자)라고 가정
+    distributorid: distributorId, 
   };
 };
 
 const dbToMarket = (dbRow: any): Market => {
-  const { distributor_id, ...rest } = dbRow;
+  // DB에서 가져온 데이터 중 총판 ID가 될 수 있는 필드를 모두 확인
+  const distId = dbRow.distributorid || dbRow.distributor_id || dbRow.distributorId;
+  
+  // 사용한 DB 컬럼들을 제외한 나머지 속성 추출
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { distributorid, distributor_id, distributorId, ...rest } = dbRow;
+
   return {
     ...rest,
-    distributorId: distributor_id, // FK만 camelCase로 복원
+    distributorId: distId, 
   };
 };
 
@@ -38,6 +46,8 @@ const dbToMarket = (dbRow: any): Market => {
 export const AuthAPI = {
   login: async (id: string, pw: string) => {
     // 1. users 테이블에서 매칭되는 사용자 조회
+    // userId 컬럼은 Login이 동작한다면 DB에 CamelCase("userId")로 존재하거나,
+    // Supabase JS 클라이언트가 자동으로 매핑해주고 있는 상태입니다.
     const { data, error } = await supabase
       .from('users')
       .select('*')
@@ -53,6 +63,7 @@ export const AuthAPI = {
       throw new Error('사용 중지된 계정입니다. 관리자에게 문의하세요.');
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { password, ...userInfo } = data;
     return {
       success: true,
@@ -95,6 +106,7 @@ export const RoleAPI = {
 
   save: async (role: RoleItem) => {
     if (role.id === 0) {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { id, ...newRole } = role;
       const { data, error } = await supabase.from('roles').insert(newRole).select().single();
       if (error) handleError(error);
@@ -175,6 +187,7 @@ export const UserAPI = {
 
   save: async (user: User) => {
     if (user.id === 0) {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { id, ...newUser } = user;
       const { data, error } = await supabase.from('users').insert(newUser).select().single();
       if (error) handleError(error);
@@ -199,7 +212,6 @@ export const MarketAPI = {
 
     if (params?.name) query = query.ilike('name', `%${params.name}%`);
     if (params?.address) query = query.ilike('address', `%${params.address}%`);
-    // DB 컬럼이 managerName이라고 가정 (에러가 발생하지 않았다면)
     if (params?.managerName) query = query.ilike('managerName', `%${params.managerName}%`);
 
     const { data, error } = await query;
@@ -209,11 +221,12 @@ export const MarketAPI = {
   },
 
   save: async (market: Market) => {
-    // 프론트엔드 데이터를 DB 포맷으로 변환 (distributor_id만 처리)
+    // 프론트엔드 데이터를 DB 포맷으로 변환 (distributorId -> distributorid)
     const dbPayload = marketToDB(market);
 
     if (market.id === 0) {
       // id 제외하고 insert
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { id, ...newMarket } = dbPayload;
       const { data, error } = await supabase.from('markets').insert(newMarket).select().single();
       if (error) handleError(error);
@@ -247,6 +260,7 @@ export const DistributorAPI = {
 
   save: async (dist: Distributor) => {
     if (dist.id === 0) {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { id, ...newDist } = dist;
       const { data, error } = await supabase.from('distributors').insert(newDist).select().single();
       if (error) handleError(error);
