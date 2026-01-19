@@ -62,6 +62,24 @@ export interface Market {
   status: 'Normal' | 'Fire' | 'Error'; // 현재 모니터링 상태
 }
 
+export interface Store {
+  id: number;
+  marketId: number;       // 소속 시장 ID
+  marketName?: string;    // 소속 시장명 (Join용)
+  name: string;           // 상가명
+  managerName?: string;   // 담당자명
+  managerPhone?: string;  // 담당자 연락처
+  status: '사용' | '미사용'; // 사용 여부
+  storeImage?: string;    // 상가 이미지 URL
+  memo?: string;          // 비고
+
+  // --- 기기 정보 (엑셀 등록 및 상세 정보) ---
+  receiverMac?: string;   // 수신기 MAC (4자리)
+  repeaterId?: string;    // 중계기 ID (2자리)
+  detectorId?: string;    // 감지기 번호 (2자리)
+  mode?: '복합' | '열' | '연기'; // 감지 모드
+}
+
 export interface Distributor {
   id: number;
   name: string;           // 총판명

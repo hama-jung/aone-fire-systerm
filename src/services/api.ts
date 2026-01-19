@@ -1,5 +1,5 @@
 import { supabase } from '../lib/supabaseClient';
-import { User, RoleItem, Market, Distributor } from '../types';
+import { User, RoleItem, Market, Distributor, Store } from '../types';
 
 /**
  * [Supabase 연동 완료]
@@ -232,6 +232,128 @@ export const MarketAPI = {
 
   delete: async (id: number) => {
     const { error } = await supabase.from('markets').delete().eq('id', id);
+    if (error) handleError(error);
+    return true;
+  }
+};
+
+export const StoreAPI = {
+  getList: async (params?: { address?: string, marketName?: string, storeName?: string }) => {
+    // stores 테이블과 markets 테이블을 조인하여 가져옴
+    let query = supabase
+      .from('stores')
+      .select('*, markets!inner(name, address, address_detail)'); 
+
+    // 시장명이나 주소 검색이 필요한 경우 markets 테이블 필터링
+    if (params?.marketName) {
+      query = query.ilike('markets.name', `%${params.marketName}%`);
+    }
+    if (params?.address) {
+      query = query.ilike('markets.address', `%${params.address}%`);
+    }
+    if (params?.storeName) {
+      query = query.ilike('name', `%${params.storeName}%`);
+    }
+
+    query = query.order('id', { ascending: false });
+
+    const { data, error } = await query;
+    if (error) handleError(error);
+
+    // Supabase Join 결과 매핑 (marketName 등)
+    const formattedData = (data || []).map((s: any) => ({
+      id: s.id,
+      marketId: s.market_id,
+      marketName: s.markets?.name,
+      name: s.name,
+      managerName: s.manager_name,
+      managerPhone: s.manager_phone,
+      status: s.status,
+      storeImage: s.store_image,
+      memo: s.memo,
+      // DB 컬럼 -> CamelCase 매핑
+      receiverMac: s.receiver_mac,
+      repeaterId: s.repeater_id,
+      detectorId: s.detector_id,
+      mode: s.mode,
+      // 시장 주소 정보는 필요 시 사용
+    }));
+
+    return formattedData as Store[];
+  },
+
+  uploadStoreImage: async (file: File): Promise<string> => {
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
+    const filePath = `stores/${fileName}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from('store-images')
+      .upload(filePath, file);
+
+    if (uploadError) {
+      throw new Error(`이미지 업로드 실패: ${uploadError.message}`);
+    }
+
+    const { data } = supabase.storage
+      .from('store-images')
+      .getPublicUrl(filePath);
+
+    return data.publicUrl;
+  },
+
+  save: async (store: Store) => {
+    // CamelCase -> SnakeCase 매핑
+    const dbData = {
+      market_id: store.marketId,
+      name: store.name,
+      manager_name: store.managerName,
+      manager_phone: store.managerPhone,
+      status: store.status,
+      store_image: store.storeImage,
+      memo: store.memo,
+      receiver_mac: store.receiverMac,
+      repeater_id: store.repeaterId,
+      detector_id: store.detectorId,
+      mode: store.mode
+    };
+
+    if (store.id === 0) {
+      const { data, error } = await supabase.from('stores').insert(dbData).select().single();
+      if (error) handleError(error);
+      return data;
+    } else {
+      const { data, error } = await supabase.from('stores').update(dbData).eq('id', store.id).select().single();
+      if (error) handleError(error);
+      return data;
+    }
+  },
+
+  // 엑셀 일괄 등록용 (bulk insert)
+  saveBulk: async (stores: Store[]) => {
+    if (stores.length === 0) return;
+
+    const dbDataList = stores.map(store => ({
+      market_id: store.marketId,
+      name: store.name,
+      manager_name: store.managerName,
+      manager_phone: store.managerPhone,
+      status: store.status,
+      store_image: store.storeImage,
+      memo: store.memo,
+      receiver_mac: store.receiverMac,
+      repeater_id: store.repeaterId,
+      detector_id: store.detectorId,
+      mode: store.mode
+    }));
+
+    const { error } = await supabase.from('stores').insert(dbDataList);
+    if (error) handleError(error);
+    return true;
+  },
+
+  delete: async (id: number) => {
+    const { error } = await supabase.from('stores').delete().eq('id', id);
     if (error) handleError(error);
     return true;
   }

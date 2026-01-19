@@ -5,6 +5,7 @@ import { Login } from './pages/Login';
 import { Dashboard } from './pages/Dashboard';
 import { UserManagement } from './pages/UserManagement';
 import { MarketManagement } from './pages/MarketManagement';
+import { StoreManagement } from './pages/StoreManagement';
 import { RoleManagement } from './pages/RoleManagement';
 import { DistributorManagement } from './pages/DistributorManagement';
 
@@ -29,11 +30,11 @@ const App: React.FC = () => {
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/users" element={<UserManagement />} />
               <Route path="/markets" element={<MarketManagement />} />
+              <Route path="/stores" element={<StoreManagement />} />
               <Route path="/roles" element={<RoleManagement />} />
               <Route path="/distributors" element={<DistributorManagement />} />
               
               {/* Placeholders for other menu items */}
-              <Route path="/stores" element={<PlaceholderPage title="상가 관리" />} />
               <Route path="/sms" element={<PlaceholderPage title="문자 전송" />} />
               <Route path="/access-logs" element={<PlaceholderPage title="접속 로그" />} />
               <Route path="/receivers" element={<PlaceholderPage title="R형 수신기 관리" />} />

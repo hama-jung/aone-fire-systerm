@@ -55,7 +55,7 @@ const SidebarItem: React.FC<{ item: MenuItem; level?: number }> = ({ item, level
   const hasChildren = item.children && item.children.length > 0;
   
   const isActive = item.path ? location.pathname === item.path : false;
-  const isChildActive = item.children?.some(child => child.path === location.pathname);
+  // const isChildActive = item.children?.some(child => child.path === location.pathname);
 
   // 폰트 크기: text-[14px]
   const baseClasses = "w-full flex items-center gap-3 px-5 py-2.5 text-[14px] font-medium transition-all duration-200";
@@ -87,7 +87,7 @@ const SidebarItem: React.FC<{ item: MenuItem; level?: number }> = ({ item, level
   return (
     <NavLink
       to={item.path || '#'}
-      className={({ isActive }) => `
+      className={`
         ${baseClasses}
         ${level > 0 ? 'pl-12' : ''}
         ${isActive 
