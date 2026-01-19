@@ -31,13 +31,35 @@ export interface User {
 
 export interface Market {
   id: number;
+  distributorId?: number; // 연결된 총판 ID
   name: string;
   address: string;
-  addressDetail?: string; // 상세주소 추가
-  zipCode?: string; // 우편번호 추가
+  addressDetail?: string; // 상세주소
+  zipCode?: string; 
+  latitude?: string;       // 위도
+  longitude?: string;      // 경도
+  
   managerName: string;
   managerPhone: string;
-  status: 'Normal' | 'Fire' | 'Error';
+  managerEmail?: string;   // 담당자 이메일
+  memo?: string;           // 비고
+
+  // --- 설정 플래그 (Config Flags) ---
+  enableMarketSms?: '사용' | '미사용';       // 시장전체 문자전송여부
+  enableStoreSms?: '사용' | '미사용';        // 상가주인 문자전송여부
+  enableMultiMedia?: '사용' | '미사용';      // 다매체전송 여부
+  multiMediaType?: '복합' | '열' | '연기';   // 다매체 타입
+  usageStatus?: '사용' | '미사용';           // 시장 사용여부 (설정값)
+  enableDeviceFaultSms?: '사용' | '미사용';  // 기기고장 문자전송여부
+  enableCctvUrl?: '사용' | '미사용';         // 화재문자시 CCTV URL 포함여부
+
+  // --- 수정 시에만 노출되는 데이터 (Edit Only) ---
+  smsFire?: string[];    // 화재발생시 SMS 수신번호 목록
+  smsFault?: string[];   // 고장발생시 SMS 수신번호 목록
+  mapImage?: string;     // 시장지도 이미지 URL
+
+  // --- 시스템 상태 (System Status) ---
+  status: 'Normal' | 'Fire' | 'Error'; // 현재 모니터링 상태
 }
 
 export interface Distributor {
