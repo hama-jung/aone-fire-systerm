@@ -13,16 +13,75 @@ const handleError = (error: any) => {
   throw new Error(error.message || "데이터 처리 중 오류가 발생했습니다.");
 };
 
+// --- Helper: Market Data Mapping (CamelCase <-> SnakeCase) ---
+// DB는 보통 snake_case를 사용하고, Frontend는 camelCase를 사용하므로 변환이 필요합니다.
+// 기존 필드(managerName 등)가 camelCase로 되어 있는 경우를 대비해 혼용을 방지합니다.
+// 여기서는 '새로 추가된 필드' 위주로 snake_case 매핑을 적용하고, 
+// 기존 필드(managerName 등)는 기존 DB 스키마가 camelCase일 가능성을 염두에 둡니다.
+// 단, 오류가 발생한 distributorId는 distributor_id로 매핑합니다.
+
+const marketToDB = (market: Market) => {
+  // DB에 보낼 때는 snake_case로 변환 (필요한 필드만)
+  const { 
+    distributorId, managerEmail, enableMarketSms, enableStoreSms, 
+    enableMultiMedia, multiMediaType, usageStatus, enableDeviceFaultSms, 
+    enableCctvUrl, smsFire, smsFault, mapImage, 
+    addressDetail, zipCode,
+    ...rest 
+  } = market;
+
+  return {
+    ...rest,
+    distributor_id: distributorId,         // distributorId -> distributor_id
+    manager_email: managerEmail,           // managerEmail -> manager_email
+    address_detail: addressDetail,         // addressDetail -> address_detail
+    zip_code: zipCode,                     // zipCode -> zip_code
+    enable_market_sms: enableMarketSms,
+    enable_store_sms: enableStoreSms,
+    enable_multi_media: enableMultiMedia,
+    multi_media_type: multiMediaType,
+    usage_status: usageStatus,
+    enable_device_fault_sms: enableDeviceFaultSms,
+    enable_cctv_url: enableCctvUrl,
+    sms_fire: smsFire,
+    sms_fault: smsFault,
+    map_image: mapImage,
+    // 기존 managerName, managerPhone 등은 DB 스키마에 따라 camelCase 유지 가능성 있음.
+    // 만약 DB도 전부 snake_case라면 여기서 manager_name: market.managerName 등으로 추가 매핑 필요.
+    // 현재는 에러가 난 distributorId 위주로 처리.
+  };
+};
+
+const dbToMarket = (dbRow: any): Market => {
+  // DB에서 받을 때는 camelCase로 복원
+  return {
+    ...dbRow,
+    distributorId: dbRow.distributor_id || dbRow.distributorId,
+    managerEmail: dbRow.manager_email || dbRow.managerEmail,
+    addressDetail: dbRow.address_detail || dbRow.addressDetail,
+    zipCode: dbRow.zip_code || dbRow.zipCode,
+    enableMarketSms: dbRow.enable_market_sms || dbRow.enableMarketSms,
+    enableStoreSms: dbRow.enable_store_sms || dbRow.enableStoreSms,
+    enableMultiMedia: dbRow.enable_multi_media || dbRow.enableMultiMedia,
+    multiMediaType: dbRow.multi_media_type || dbRow.multiMediaType,
+    usageStatus: dbRow.usage_status || dbRow.usageStatus,
+    enableDeviceFaultSms: dbRow.enable_device_fault_sms || dbRow.enableDeviceFaultSms,
+    enableCctvUrl: dbRow.enable_cctv_url || dbRow.enableCctvUrl,
+    smsFire: dbRow.sms_fire || dbRow.smsFire,
+    smsFault: dbRow.sms_fault || dbRow.smsFault,
+    mapImage: dbRow.map_image || dbRow.mapImage,
+  };
+};
+
 // --- API Services ---
 
 export const AuthAPI = {
   login: async (id: string, pw: string) => {
     // 1. users 테이블에서 매칭되는 사용자 조회
-    // (보안상 실제 서비스에선 Supabase Auth를 쓰는게 좋지만, 현재 구조 유지를 위해 테이블 조회 방식 사용)
     const { data, error } = await supabase
       .from('users')
       .select('*')
-      .eq('userId', id) // "userId" 대소문자 주의 (따옴표로 생성했으므로)
+      .eq('userId', id) 
       .eq('password', pw)
       .single();
 
@@ -34,17 +93,15 @@ export const AuthAPI = {
       throw new Error('사용 중지된 계정입니다. 관리자에게 문의하세요.');
     }
 
-    // 비밀번호 제외하고 리턴
     const { password, ...userInfo } = data;
     return {
       success: true,
-      token: 'supabase-session-token', // 실제 토큰 대신 더미 토큰
+      token: 'supabase-session-token',
       user: userInfo
     };
   },
 
   changePassword: async (userId: string, currentPw: string, newPw: string) => {
-    // 1. 현재 비밀번호 확인
     const { data: user, error: fetchError } = await supabase
       .from('users')
       .select('password')
@@ -54,7 +111,6 @@ export const AuthAPI = {
     if (fetchError || !user) throw new Error('사용자를 찾을 수 없습니다.');
     if (user.password !== currentPw) throw new Error('현재 비밀번호가 일치하지 않습니다.');
 
-    // 2. 비밀번호 업데이트
     const { error: updateError } = await supabase
       .from('users')
       .update({ password: newPw })
@@ -78,15 +134,12 @@ export const RoleAPI = {
   },
 
   save: async (role: RoleItem) => {
-    // id가 0이면 신규, 아니면 수정
     if (role.id === 0) {
-      // 신규 등록 (id 제외)
       const { id, ...newRole } = role;
       const { data, error } = await supabase.from('roles').insert(newRole).select().single();
       if (error) handleError(error);
       return data;
     } else {
-      // 수정
       const { data, error } = await supabase.from('roles').update(role).eq('id', role.id).select().single();
       if (error) handleError(error);
       return data;
@@ -101,9 +154,7 @@ export const RoleAPI = {
 };
 
 export const CommonAPI = {
-  // 총판 + 시장 목록 통합 조회 (부서/업체명 검색용)
   getCompanyList: async (searchName?: string) => {
-    // 병렬로 조회
     const [distRes, marketRes] = await Promise.all([
       supabase.from('distributors').select('id, name, managerName, managerPhone'),
       supabase.from('markets').select('id, name, managerName, managerPhone')
@@ -144,7 +195,7 @@ export const UserAPI = {
 
     if (params?.userId) query = query.ilike('userId', `%${params.userId}%`);
     if (params?.name) query = query.ilike('name', `%${params.name}%`);
-    if (params?.role && params.role !== '전체') query = query.eq('role', params.role); // role은 정확히 일치
+    if (params?.role && params.role !== '전체') query = query.eq('role', params.role);
     if (params?.department) query = query.ilike('department', `%${params.department}%`);
 
     const { data, error } = await query;
@@ -155,7 +206,7 @@ export const UserAPI = {
   checkDuplicate: async (userId: string) => {
     const { count, error } = await supabase
       .from('users')
-      .select('*', { count: 'exact', head: true }) // 데이터 없이 개수만 조회
+      .select('*', { count: 'exact', head: true })
       .eq('userId', userId);
     
     if (error) handleError(error);
@@ -164,13 +215,11 @@ export const UserAPI = {
 
   save: async (user: User) => {
     if (user.id === 0) {
-      // 신규
       const { id, ...newUser } = user;
       const { data, error } = await supabase.from('users').insert(newUser).select().single();
       if (error) handleError(error);
       return data;
     } else {
-      // 수정
       const { data, error } = await supabase.from('users').update(user).eq('id', user.id).select().single();
       if (error) handleError(error);
       return data;
@@ -188,25 +237,33 @@ export const MarketAPI = {
   getList: async (params?: { name?: string, address?: string, managerName?: string }) => {
     let query = supabase.from('markets').select('*').order('id', { ascending: false });
 
+    // 검색 조건 (DB 컬럼명이 snake_case일 수도 있고 camelCase일 수도 있음. 
+    // 기존 코드가 camelCase였으므로 그대로 유지하되, 필요시 DB 컬럼명 확인 필요)
     if (params?.name) query = query.ilike('name', `%${params.name}%`);
     if (params?.address) query = query.ilike('address', `%${params.address}%`);
     if (params?.managerName) query = query.ilike('managerName', `%${params.managerName}%`);
 
     const { data, error } = await query;
     if (error) handleError(error);
-    return data || [];
+
+    // DB 데이터를 프론트엔드 포맷으로 변환
+    return (data || []).map(dbToMarket);
   },
 
   save: async (market: Market) => {
+    // 프론트엔드 데이터를 DB 포맷(snake_case)으로 변환
+    const dbPayload = marketToDB(market);
+
     if (market.id === 0) {
-      const { id, ...newMarket } = market;
+      // id 제외하고 insert
+      const { id, ...newMarket } = dbPayload;
       const { data, error } = await supabase.from('markets').insert(newMarket).select().single();
       if (error) handleError(error);
-      return data;
+      return dbToMarket(data);
     } else {
-      const { data, error } = await supabase.from('markets').update(market).eq('id', market.id).select().single();
+      const { data, error } = await supabase.from('markets').update(dbPayload).eq('id', market.id).select().single();
       if (error) handleError(error);
-      return data;
+      return dbToMarket(data);
     }
   },
 
@@ -252,16 +309,14 @@ export const DistributorAPI = {
 
 export const DashboardAPI = {
   getData: async () => {
-    // 1. 통계 데이터 (병렬 처리)
     const [fireRes, faultRes] = await Promise.all([
-      supabase.from('fire_events').select('*', { count: 'exact', head: true }).eq('type', 'fire'), // type='fire'인 수
-      supabase.from('fire_events').select('*', { count: 'exact', head: true }).eq('type', 'fault'), // type='fault'인 수
+      supabase.from('fire_events').select('*', { count: 'exact', head: true }).eq('type', 'fire'),
+      supabase.from('fire_events').select('*', { count: 'exact', head: true }).eq('type', 'fault'),
     ]);
 
     const fireCount = fireRes.count || 0;
     const faultCount = faultRes.count || 0;
 
-    // 2. 로그 데이터 가져오기 (가상의 테이블 fire_events에서 최근 5개)
     const { data: logs } = await supabase
       .from('fire_events')
       .select('*')
@@ -271,7 +326,6 @@ export const DashboardAPI = {
     const fireLogs = (logs || []).filter(l => l.type === 'fire');
     const faultLogs = (logs || []).filter(l => l.type === 'fault');
 
-    // 맵 포인트는 아직 DB에 없으므로 고정값 사용 (또는 DB화 가능)
     const mapPoints = [
       { id: 1, x: 30, y: 40, name: '서울/경기', status: 'normal' },
       { id: 2, x: 60, y: 50, name: '경상북도', status: fireCount > 0 ? 'fire' : 'normal' },
