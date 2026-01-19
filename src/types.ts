@@ -67,8 +67,18 @@ export interface Store {
   marketId: number;       // 소속 시장 ID
   marketName?: string;    // 소속 시장명 (Join용)
   name: string;           // 상가명
-  managerName?: string;   // 담당자명
-  managerPhone?: string;  // 담당자 연락처
+  
+  // 담당자 -> 대표자로 용어 변경 (DB 컬럼은 기존 호환성을 위해 managerName 유지 가능하지만 UI는 대표자로 표기)
+  managerName?: string;   // 대표자명
+  managerPhone?: string;  // 대표자 연락처
+  
+  // --- 추가된 필드 ---
+  address?: string;       // 주소
+  addressDetail?: string; // 상세주소
+  latitude?: string;      // 위도
+  longitude?: string;     // 경도
+  handlingItems?: string; // 취급품목
+
   status: '사용' | '미사용'; // 사용 여부
   storeImage?: string;    // 상가 이미지 URL
   memo?: string;          // 비고

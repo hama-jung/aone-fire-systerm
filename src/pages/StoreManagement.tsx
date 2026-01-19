@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   PageHeader, SearchFilterBar, InputGroup, SelectGroup,
-  Button, DataTable, Pagination, ActionBar, FormSection, FormRow, Column, Modal, UI_STYLES
+  Button, DataTable, Pagination, ActionBar, FormSection, FormRow, Column, Modal, UI_STYLES, AddressInput
 } from '../components/CommonUI';
 import { Store, Market } from '../types';
 import { StoreAPI, MarketAPI } from '../services/api';
@@ -85,7 +85,7 @@ export const StoreManagement: React.FC = () => {
   // --- Handlers: List Actions ---
   const handleRegister = () => {
     setSelectedStore(null);
-    setFormData({ status: '사용', mode: '복합' });
+    setFormData({ status: '사용', mode: '복합', address: '', addressDetail: '' });
     setSelectedMarketForForm(null);
     setStoreImageFile(null);
     if (fileInputRef.current) fileInputRef.current.value = '';
@@ -113,8 +113,9 @@ export const StoreManagement: React.FC = () => {
         'No': idx + 1,
         '소속시장': s.marketName,
         '상가명': s.name,
-        '담당자명': s.managerName,
-        '담당자연락처': s.managerPhone,
+        '대표자명': s.managerName,
+        '대표자연락처': s.managerPhone,
+        '주소': `${s.address || ''} ${s.addressDetail || ''}`.trim(),
         '상태': s.status
     }));
     exportToExcel(exportData, '상가관리_목록');
@@ -192,8 +193,15 @@ export const StoreManagement: React.FC = () => {
         uploadedImageUrl = await StoreAPI.uploadStoreImage(storeImageFile);
       }
 
+      // 빈 문자열 정리
+      const cleanData = { ...formData };
+      if (!cleanData.latitude) cleanData.latitude = undefined;
+      if (!cleanData.longitude) cleanData.longitude = undefined;
+      if (!cleanData.address) cleanData.address = undefined;
+      if (!cleanData.handlingItems) cleanData.handlingItems = undefined;
+
       const newStore: Store = {
-        ...formData as Store,
+        ...cleanData as Store,
         id: selectedStore?.id || 0,
         storeImage: uploadedImageUrl,
       };
@@ -239,19 +247,22 @@ export const StoreManagement: React.FC = () => {
       const data = XLSX.utils.sheet_to_json(ws);
 
       // Map excel rows to Store objects
-      // Expected Columns: 상가명, 담당자명, 담당자연락처, 수신기MAC, 중계기ID, 감지기번호, 모드
       const parsedStores: Store[] = data.map((row: any, idx: number) => ({
         id: 0, // new
         marketId: excelMarket.id,
         marketName: excelMarket.name,
         name: row['상가명'] || `상가_${idx+1}`,
-        managerName: row['담당자명'] || '',
-        managerPhone: row['담당자연락처'] || '',
+        managerName: row['대표자명'] || '',
+        managerPhone: row['대표자연락처'] || '',
         status: '사용',
         receiverMac: row['수신기MAC'] ? String(row['수신기MAC']) : '',
         repeaterId: row['중계기ID'] ? String(row['중계기ID']) : '',
         detectorId: row['감지기번호'] ? String(row['감지기번호']) : '',
         mode: row['모드'] || '복합',
+        handlingItems: row['취급품목'] || '',
+        address: row['주소'] || '',
+        addressDetail: row['상세주소'] || '',
+        memo: row['비고'] || '',
       }));
 
       setExcelData(parsedStores);
@@ -280,8 +291,23 @@ export const StoreManagement: React.FC = () => {
   };
 
   const handleSampleDownload = () => {
-      // In a real app, this would point to a file in Supabase Storage or public assets
-      alert("Supabase Storage 'resources' 버킷에 'store_upload_sample.xlsx' 파일을 업로드한 후 URL을 연결해야 합니다.\n현재는 안내 메시지만 출력됩니다.");
+      // 엑셀 샘플 데이터를 동적으로 생성
+      const sampleData = [
+        {
+          '상가명': '샘플상가',
+          '대표자명': '홍길동',
+          '대표자연락처': '010-1234-5678',
+          '수신기MAC': '1A2B',
+          '중계기ID': '01',
+          '감지기번호': '01',
+          '모드': '복합',
+          '취급품목': '의류, 잡화',
+          '주소': '서울시 강남구 테헤란로 123',
+          '상세주소': '1층 101호',
+          '비고': '비고 내용'
+        }
+      ];
+      exportToExcel(sampleData, '상가일괄등록_샘플양식');
   };
 
   // --- Table Columns ---
@@ -289,8 +315,8 @@ export const StoreManagement: React.FC = () => {
     { header: 'No', accessor: 'id', width: '60px' },
     { header: '소속시장', accessor: 'marketName' },
     { header: '상가명', accessor: 'name' },
-    { header: '담당자', accessor: 'managerName' },
-    { header: '연락처', accessor: 'managerPhone' },
+    { header: '대표자', accessor: 'managerName' },
+    { header: '대표자연락처', accessor: 'managerPhone' },
     { header: '상태', accessor: (s) => (
        <span className={s.status === '사용' ? 'text-green-400' : 'text-red-400'}>{s.status}</span>
     )},
@@ -326,16 +352,22 @@ export const StoreManagement: React.FC = () => {
         <PageHeader title={selectedStore ? "상가 수정" : "상가 등록"} />
         <form onSubmit={handleSave}>
           <FormSection title={selectedStore ? "상가 수정" : "상가 등록"}>
-            {/* 1. 소속 시장 (Required) */}
+            {/* 1. 소속 시장 (Required) - 한 줄 아이콘 버튼 스타일 적용 */}
             <FormRow label="소속 시장" required>
                <div className="flex gap-2 w-full">
-                 <InputGroup 
-                    value={selectedMarketForForm?.name || ''} 
-                    placeholder="시장 선택" 
-                    readOnly 
-                    onClick={openMarketModal} 
-                    className="cursor-pointer"
-                 />
+                 <div 
+                   onClick={openMarketModal}
+                   className="flex-1 relative cursor-pointer"
+                 >
+                    <input 
+                       type="text"
+                       value={selectedMarketForForm?.name || ''} 
+                       placeholder="시장 선택" 
+                       readOnly 
+                       className={`${UI_STYLES.input} cursor-pointer hover:bg-slate-700/50 pr-8`}
+                    />
+                    <Search className="absolute right-3 top-2.5 text-slate-400 pointer-events-none" size={16} />
+                 </div>
                  <Button type="button" variant="secondary" onClick={openMarketModal}>찾기</Button>
                </div>
             </FormRow>
@@ -349,21 +381,57 @@ export const StoreManagement: React.FC = () => {
                />
             </FormRow>
 
-            {/* 3. 담당자 정보 */}
-            <FormRow label="담당자">
+            {/* 3. 주소 (신규 추가) */}
+            <div className="col-span-1 md:col-span-2">
+              <AddressInput 
+                 label="주소"
+                 address={formData.address || ''}
+                 addressDetail={formData.addressDetail || ''}
+                 onAddressChange={(val) => setFormData({...formData, address: val})}
+                 onDetailChange={(val) => setFormData({...formData, addressDetail: val})}
+              />
+            </div>
+
+            {/* 4. 위도, 경도 (신규 추가) */}
+            <FormRow label="위도">
+               <InputGroup 
+                 value={formData.latitude || ''} 
+                 onChange={(e) => setFormData({...formData, latitude: e.target.value})} 
+                 placeholder="위도"
+               />
+            </FormRow>
+            <FormRow label="경도">
+               <InputGroup 
+                 value={formData.longitude || ''} 
+                 onChange={(e) => setFormData({...formData, longitude: e.target.value})} 
+                 placeholder="경도"
+               />
+            </FormRow>
+
+            {/* 5. 대표자 정보 (라벨 변경: 담당자 -> 대표자) */}
+            <FormRow label="대표자">
                <InputGroup 
                  value={formData.managerName || ''} 
                  onChange={(e) => setFormData({...formData, managerName: e.target.value})} 
                />
             </FormRow>
-            <FormRow label="담당자 연락처">
+            <FormRow label="대표자 연락처">
                <InputGroup 
                  value={formData.managerPhone || ''} 
                  onChange={(e) => setFormData({...formData, managerPhone: e.target.value})} 
                />
             </FormRow>
 
-            {/* 4. 기기 정보 (선택, 수정 가능) */}
+            {/* 6. 취급품목 (신규 추가) */}
+            <FormRow label="취급품목" className="col-span-1 md:col-span-2">
+               <InputGroup 
+                 value={formData.handlingItems || ''} 
+                 onChange={(e) => setFormData({...formData, handlingItems: e.target.value})} 
+                 placeholder="예: 의류, 잡화"
+               />
+            </FormRow>
+
+            {/* 7. 기기 정보 */}
             <FormRow label="수신기 MAC (4자리)">
                <InputGroup 
                  value={formData.receiverMac || ''} 
@@ -396,7 +464,7 @@ export const StoreManagement: React.FC = () => {
                />
             </FormRow>
 
-            {/* 5. 비고 */}
+            {/* 8. 비고 */}
             <FormRow label="비고" className="col-span-1 md:col-span-2">
                <InputGroup 
                  value={formData.memo || ''} 
@@ -404,35 +472,37 @@ export const StoreManagement: React.FC = () => {
                />
             </FormRow>
 
-            {/* 6. 이미지 (공통 규칙) */}
-            <FormRow label="상가 이미지" className="col-span-1 md:col-span-2">
-                <div className="flex flex-col gap-2 w-full">
-                   <InputGroup 
-                      ref={fileInputRef}
-                      type="file" 
-                      onChange={handleFileChange}
-                      onClick={handleFileClick}
-                      className="border-0 p-0 text-slate-300 w-full" 
-                   />
-                   {(formData.storeImage || storeImageFile) && (
-                      <div className="flex items-center gap-2 p-2 bg-slate-700/50 rounded border border-slate-600 w-fit">
-                         <Paperclip size={14} className="text-slate-400" />
-                         <span 
-                            onClick={() => formData.storeImage && window.open(formData.storeImage, '_blank')}
-                            className={`text-sm ${formData.storeImage ? 'text-blue-400 cursor-pointer hover:underline' : 'text-slate-300'}`}
-                            title={formData.storeImage ? "클릭하여 다운로드" : "저장 전 파일입니다"}
-                         >
-                            {getFileName()}
-                         </span>
-                         <button type="button" onClick={handleRemoveFile} className="text-red-400 hover:text-red-300 ml-2 p-1 rounded hover:bg-slate-600 transition-colors">
-                            <X size={16} />
-                         </button>
-                      </div>
-                   )}
-                </div>
-            </FormRow>
+            {/* 9. 이미지 (수정 시에만 노출) */}
+            {selectedStore && (
+              <FormRow label="상가 이미지" className="col-span-1 md:col-span-2">
+                  <div className="flex flex-col gap-2 w-full">
+                    <InputGroup 
+                        ref={fileInputRef}
+                        type="file" 
+                        onChange={handleFileChange}
+                        onClick={handleFileClick}
+                        className="border-0 p-0 text-slate-300 w-full" 
+                    />
+                    {(formData.storeImage || storeImageFile) && (
+                        <div className="flex items-center gap-2 p-2 bg-slate-700/50 rounded border border-slate-600 w-fit">
+                          <Paperclip size={14} className="text-slate-400" />
+                          <span 
+                              onClick={() => formData.storeImage && window.open(formData.storeImage, '_blank')}
+                              className={`text-sm ${formData.storeImage ? 'text-blue-400 cursor-pointer hover:underline' : 'text-slate-300'}`}
+                              title={formData.storeImage ? "클릭하여 다운로드" : "저장 전 파일입니다"}
+                          >
+                              {getFileName()}
+                          </span>
+                          <button type="button" onClick={handleRemoveFile} className="text-red-400 hover:text-red-300 ml-2 p-1 rounded hover:bg-slate-600 transition-colors">
+                              <X size={16} />
+                          </button>
+                        </div>
+                    )}
+                  </div>
+              </FormRow>
+            )}
 
-            {/* 7. 상가 사용여부 (Required) */}
+            {/* 10. 상가 사용여부 (Required) */}
             <FormRow label="상가 사용여부" required className="col-span-1 md:col-span-2">
                <div className={`${UI_STYLES.input} flex gap-4 text-slate-300 items-center`}>
                   <label className="flex items-center gap-2 cursor-pointer hover:text-white">
@@ -494,13 +564,19 @@ export const StoreManagement: React.FC = () => {
             {/* 1. 소속 시장 선택 */}
             <FormRow label="소속 시장" required className="col-span-1 md:col-span-2">
                <div className="flex gap-2 w-full max-w-md">
-                 <InputGroup 
-                    value={excelMarket?.name || ''} 
-                    placeholder="등록할 시장을 선택하세요" 
-                    readOnly 
-                    onClick={openMarketModal} 
-                    className="cursor-pointer"
-                 />
+                 <div 
+                   onClick={openMarketModal}
+                   className="flex-1 relative cursor-pointer"
+                 >
+                    <input 
+                       type="text"
+                       value={excelMarket?.name || ''} 
+                       placeholder="등록할 시장을 선택하세요" 
+                       readOnly 
+                       className={`${UI_STYLES.input} cursor-pointer hover:bg-slate-700/50 pr-8`}
+                    />
+                    <Search className="absolute right-3 top-2.5 text-slate-400 pointer-events-none" size={16} />
+                 </div>
                  <Button type="button" variant="secondary" onClick={openMarketModal}>찾기</Button>
                </div>
             </FormRow>
@@ -535,7 +611,7 @@ export const StoreManagement: React.FC = () => {
              <DataTable 
                columns={[
                   {header:'상가명', accessor:'name'},
-                  {header:'담당자', accessor:'managerName'},
+                  {header:'대표자', accessor:'managerName'},
                   {header:'연락처', accessor:'managerPhone'},
                   {header:'수신기MAC', accessor:'receiverMac'},
                   {header:'중계기ID', accessor:'repeaterId'},
@@ -616,8 +692,8 @@ export const StoreManagement: React.FC = () => {
           { header: 'No', accessor: 'id', width: '60px' },
           { header: '소속시장', accessor: 'marketName' },
           { header: '상가명', accessor: 'name' },
-          { header: '담당자', accessor: 'managerName' },
-          { header: '연락처', accessor: 'managerPhone' },
+          { header: '대표자', accessor: 'managerName' },
+          { header: '대표자연락처', accessor: 'managerPhone' },
           { header: '상태', accessor: (s) => (
              <span className={s.status === '사용' ? 'text-green-400' : 'text-red-400'}>{s.status}</span>
           )},

@@ -48,7 +48,7 @@ export const AuthAPI = {
       .eq('userId', userId)
       .single();
 
-    if (fetchError || !user) throw new Error('사용자를 찾을 수 없습니다.');
+    if (fetchError || !user) throw new Error('사용자를 찾을 수 없습니다. (ID 불일치)');
     if (user.password !== currentPw) throw new Error('현재 비밀번호가 일치하지 않습니다.');
 
     const { error: updateError } = await supabase
@@ -234,8 +234,6 @@ export const MarketAPI = {
 export const StoreAPI = {
   getList: async (params?: { address?: string, marketName?: string, storeName?: string }) => {
     // 1. markets 테이블과 Join (Inner Join)
-    // DB 컬럼이 "addressDetail" 같이 따옴표가 필요한 경우에도 supabase js는 자동으로 매핑해주기도 하지만,
-    // 명시적으로 선택하는 것이 안전합니다.
     let query = supabase
       .from('stores')
       .select('*, markets!inner(name, address, "addressDetail")'); 
@@ -256,8 +254,6 @@ export const StoreAPI = {
     if (error) handleError(error);
 
     // 2. 결과 매핑
-    // DB 스키마가 CamelCase("marketId", "managerName")로 되어 있으므로
-    // Supabase 결과도 CamelCase 속성으로 반환됩니다.
     const formattedData = (data || []).map((s: any) => ({
       id: s.id,
       marketId: s.marketId,
@@ -272,6 +268,12 @@ export const StoreAPI = {
       repeaterId: s.repeaterId,
       detectorId: s.detectorId,
       mode: s.mode,
+      // 새로 추가된 필드들 (Supabase DB에 컬럼이 존재해야 함)
+      address: s.address,
+      addressDetail: s.addressDetail,
+      latitude: s.latitude,
+      longitude: s.longitude,
+      handlingItems: s.handlingItems,
     }));
 
     return formattedData as Store[];
@@ -302,7 +304,6 @@ export const StoreAPI = {
     const { id, marketName, ...storeData } = store;
 
     if (store.id === 0) {
-      // 스네이크 표기법 변환 없이, Store 객체(CamelCase) 그대로 전송 (DB 컬럼과 일치)
       const { data, error } = await supabase.from('stores').insert(storeData).select().single();
       if (error) handleError(error);
       return data;
