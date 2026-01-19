@@ -200,6 +200,9 @@ export const MarketAPI = {
 
     if (uploadError) {
       console.error('Image Upload Error:', uploadError);
+      if (uploadError.message.includes('Bucket not found')) {
+          throw new Error("스토리지 버킷(market-maps)이 없습니다. supabase_storage.sql을 실행해주세요.");
+      }
       throw new Error(`이미지 업로드 실패: ${uploadError.message}`);
     }
 
@@ -289,6 +292,9 @@ export const StoreAPI = {
       .upload(filePath, file);
 
     if (uploadError) {
+      if (uploadError.message.includes('Bucket not found')) {
+          throw new Error("스토리지 버킷(store-images)이 없습니다. supabase_storage.sql을 실행해주세요.");
+      }
       throw new Error(`이미지 업로드 실패: ${uploadError.message}`);
     }
 
