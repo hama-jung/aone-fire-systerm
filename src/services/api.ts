@@ -1,5 +1,5 @@
 import { supabase } from '../lib/supabaseClient';
-import { User, RoleItem, Market, Distributor, Store, WorkLog, Receiver, Repeater, Detector, MenuItemDB } from '../types';
+import { User, RoleItem, Market, Distributor, Store, WorkLog, Receiver, Repeater, Detector, Transmitter, MenuItemDB } from '../types';
 
 /**
  * [Supabase 연동 완료]
@@ -620,9 +620,6 @@ export const DetectorAPI = {
     // 상가명 검색은 조인된 detector_stores를 필터링해야 하는데, 
     // Supabase의 !inner 조인 필터링이 복잡하므로 여기서는 간단한 필터링만 구현하거나
     // detector_stores.stores.name에 대해 필터를 걸어야 함.
-    // 현재는 상가명 검색이 복잡하므로 생략하거나, detector에 텍스트로 저장된게 아니므로 로직이 복잡함.
-    // 일단 상가명 검색은 disable하거나, 클라이언트 사이드 필터링 고려 필요.
-    // 여기서는 기본 기능 유지를 위해 주석 처리 또는 간단한 방식 유지.
     
     if (params?.receiverMac) query = query.ilike('receiverMac', `%${params.receiverMac}%`);
     if (params?.repeaterId) query = query.eq('repeaterId', params.repeaterId);
@@ -688,9 +685,6 @@ export const DetectorAPI = {
     
     // 일괄 등록은 복잡하므로, 일단 기본 정보만 detector 테이블에 넣고
     // 상가 매핑은 생략하거나 (엑셀에 상가명이 텍스트로 있어서 ID 매칭이 어려움)
-    // 상가명으로 ID를 찾는 로직이 필요함.
-    // 현재 요구사항에서는 일단 detector 테이블만 넣는것으로 유지 (상가 매핑 제외)
-    // * 개선: 엑셀 등록 시 상가명 텍스트로 상가ID를 찾아야 정확함.
     // 여기서는 detector_stores 로직 생략하고 기본 정보만 저장
     
     const payload = detectors.map(d => ({
@@ -711,6 +705,48 @@ export const DetectorAPI = {
 
   delete: async (id: number) => {
     const { error } = await supabase.from('detectors').delete().eq('id', id);
+    if (error) handleError(error);
+    return true;
+  }
+};
+
+export const TransmitterAPI = {
+  getList: async (params?: { marketName?: string, receiverMac?: string, usageStatus?: string }) => {
+    let query = supabase
+      .from('transmitters')
+      .select('*, markets!inner(name)')
+      .order('id', { ascending: false });
+
+    if (params?.marketName) query = query.ilike('markets.name', `%${params.marketName}%`);
+    if (params?.receiverMac) query = query.ilike('receiverMac', `%${params.receiverMac}%`);
+    if (params?.usageStatus && params.usageStatus !== '전체') query = query.eq('usageStatus', params.usageStatus);
+
+    const { data, error } = await query;
+    if (error) handleError(error);
+
+    return (data || []).map((item: any) => ({
+      ...item,
+      marketName: item.markets?.name
+    }));
+  },
+
+  save: async (transmitter: Transmitter) => {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { id, marketName, ...payload } = transmitter;
+
+    if (transmitter.id === 0) {
+      const { data, error } = await supabase.from('transmitters').insert(payload).select().single();
+      if (error) handleError(error);
+      return data;
+    } else {
+      const { data, error } = await supabase.from('transmitters').update(payload).eq('id', transmitter.id).select().single();
+      if (error) handleError(error);
+      return data;
+    }
+  },
+
+  delete: async (id: number) => {
+    const { error } = await supabase.from('transmitters').delete().eq('id', id);
     if (error) handleError(error);
     return true;
   }
