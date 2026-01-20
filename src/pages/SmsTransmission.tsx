@@ -229,7 +229,7 @@ export const SmsTransmission: React.FC = () => {
       ), 
       width: '50px' 
     },
-    { header: 'No', accessor: (_, idx) => idx !== undefined ? idx + 1 : 0, width: '60px' },
+    { header: 'No', accessor: (_, idx) => idx + 1, width: '60px' },
     { header: '사용자ID', accessor: (row) => row.userId || '-', width: '120px' },
     { header: '이 름', accessor: 'name' },
     { header: '업체명', accessor: 'department' },
