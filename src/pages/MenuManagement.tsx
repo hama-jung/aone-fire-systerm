@@ -5,8 +5,13 @@ import { MenuAPI } from '../services/api';
 import { getIcon, ICON_KEYS } from '../utils/iconMapper';
 import { Edit, Trash2 } from 'lucide-react';
 
+// Type for the flattened display item
+interface MenuItemDisplay extends MenuItemDB {
+  depth: number;
+}
+
 export const MenuManagement: React.FC = () => {
-  const [menus, setMenus] = useState<MenuItemDB[]>([]);
+  const [displayMenus, setDisplayMenus] = useState<MenuItemDisplay[]>([]); // Flattened list for table
   const [loading, setLoading] = useState(false);
   
   // Modal State
@@ -17,20 +22,41 @@ export const MenuManagement: React.FC = () => {
   // Parent Menu Options
   const [parentOptions, setParentOptions] = useState<{value: string | number, label: string}[]>([]);
 
+  // --- Logic: Flatten the Tree for Table Display ---
+  const flattenTree = (nodes: MenuItemDB[], depth = 0): MenuItemDisplay[] => {
+    let result: MenuItemDisplay[] = [];
+    
+    // Sort by sortOrder before processing
+    const sortedNodes = [...nodes].sort((a, b) => a.sortOrder - b.sortOrder);
+
+    for (const node of sortedNodes) {
+      result.push({ ...node, depth });
+      if (node.children && node.children.length > 0) {
+        result = [...result, ...flattenTree(node.children, depth + 1)];
+      }
+    }
+    return result;
+  };
+
   const fetchMenus = async () => {
     setLoading(true);
     try {
-      const data = await MenuAPI.getAll();
-      setMenus(data);
+      const tree = await MenuAPI.getTree();
       
-      const roots = data.filter(m => !m.parentId).map(m => ({ value: m.id, label: m.label }));
+      // 1. Flatten for Table Display
+      const flatList = flattenTree(tree);
+      setDisplayMenus(flatList);
+      
+      // 2. Prepare Parent Options (only Root items can be parents for now, or 1 level deep)
+      // Filter items that are roots to be potential parents for new items
+      const roots = tree.map(m => ({ value: m.id, label: m.label }));
       setParentOptions([{ value: '', label: '최상위 메뉴 (Root)' }, ...roots]);
 
     } catch (e: any) {
       if (e.message && e.message.includes('Could not find the table')) {
          console.warn('DB 테이블(menus)이 존재하지 않습니다. SQL 스크립트를 실행해주세요.');
       } else {
-         alert('메뉴 목록 로드 실패');
+         alert('메뉴 목록 로드 실패: ' + e.message);
       }
     } finally {
       setLoading(false);
@@ -41,12 +67,20 @@ export const MenuManagement: React.FC = () => {
     fetchMenus();
   }, []);
 
+  const triggerMenuUpdate = () => {
+    window.dispatchEvent(new Event('menu-update'));
+  };
+
   const handleToggle = async (id: number, field: 'isVisiblePc' | 'isVisibleMobile', currentValue: boolean) => {
     try {
-      // Optimistic Update
-      setMenus(prev => prev.map(m => m.id === id ? { ...m, [field]: !currentValue } : m));
-      // API Call
+      // 1. Optimistic Update
+      setDisplayMenus(prev => prev.map(m => m.id === id ? { ...m, [field]: !currentValue } : m));
+      
+      // 2. API Call
       await MenuAPI.toggleVisibility(id, field, !currentValue);
+      
+      // 3. Trigger Global Update
+      triggerMenuUpdate();
     } catch (e) {
       alert('상태 변경 실패');
       fetchMenus(); // Revert on error
@@ -61,11 +95,12 @@ export const MenuManagement: React.FC = () => {
   };
 
   const handleDelete = async (menu: MenuItemDB) => {
-    if (confirm(`'${menu.label}' 메뉴를 정말 삭제하시겠습니까?`)) {
+    if (confirm(`'${menu.label}' 메뉴를 정말 삭제하시겠습니까?\n(하위 메뉴가 있다면 먼저 삭제해야 합니다.)`)) {
       try {
         await MenuAPI.delete(menu.id);
         alert('삭제되었습니다.');
         fetchMenus();
+        triggerMenuUpdate();
       } catch (e: any) {
         alert(`삭제 실패: ${e.message}`);
       }
@@ -87,37 +122,31 @@ export const MenuManagement: React.FC = () => {
       alert('저장되었습니다.');
       setIsModalOpen(false);
       fetchMenus();
+      triggerMenuUpdate();
     } catch (e: any) {
       alert(`저장 실패: ${e.message}`);
     }
   };
 
-  // Helper to visualize depth
-  const getLabelWithDepth = (menu: MenuItemDB, allMenus: MenuItemDB[]) => {
-    let depth = 0;
-    let parent = allMenus.find(m => m.id === menu.parentId);
-    while (parent) {
-      depth++;
-      parent = allMenus.find(m => m.id === parent?.parentId);
-    }
-    
-    return (
-      <div className="flex items-center gap-2" style={{ paddingLeft: `${depth * 20}px` }}>
-        {depth === 0 && getIcon(menu.icon, 16)}
-        {depth > 0 && <span className="text-slate-500">└</span>}
-        <span>{menu.label}</span>
-      </div>
-    );
-  };
-
-  const columns: Column<MenuItemDB>[] = [
+  const columns: Column<MenuItemDisplay>[] = [
     { header: 'No', accessor: (_, idx) => idx + 1, width: '60px' },
     { 
       header: '메뉴명', 
-      accessor: (item) => getLabelWithDepth(item, menus),
-      width: '250px' 
+      accessor: (item) => (
+        <div className="flex items-center gap-2" style={{ paddingLeft: `${item.depth * 30}px` }}>
+          {item.depth === 0 ? (
+             <span className="text-blue-400">{getIcon(item.icon, 18)}</span>
+          ) : (
+             <span className="text-slate-500">└</span>
+          )}
+          <span className={item.depth === 0 ? "font-bold text-slate-200" : "text-slate-300"}>
+            {item.label}
+          </span>
+        </div>
+      ),
+      width: '300px' 
     },
-    { header: '경로', accessor: (item) => item.path || '-', width: '200px' },
+    { header: '경로', accessor: (item) => item.path || <span className="text-slate-500 italic">(폴더)</span>, width: '200px' },
     { header: '순서', accessor: 'sortOrder', width: '80px' },
     { 
       header: 'PC 노출', 
@@ -132,7 +161,7 @@ export const MenuManagement: React.FC = () => {
           <div className="w-9 h-5 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
         </label>
       ),
-      width: '80px'
+      width: '100px'
     },
     { 
       header: '모바일 노출', 
@@ -147,14 +176,14 @@ export const MenuManagement: React.FC = () => {
           <div className="w-9 h-5 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
         </label>
       ),
-      width: '80px'
+      width: '100px'
     },
     {
       header: '관리',
       accessor: (item) => (
         <div className="flex gap-2 justify-center" onClick={(e) => e.stopPropagation()}>
-           <button onClick={() => handleEdit(item)} className="p-1.5 text-blue-400 hover:bg-slate-700 rounded"><Edit size={16}/></button>
-           <button onClick={() => handleDelete(item)} className="p-1.5 text-red-400 hover:bg-slate-700 rounded"><Trash2 size={16}/></button>
+           <button onClick={() => handleEdit(item)} className="p-1.5 text-blue-400 hover:bg-slate-700 rounded transition-colors"><Edit size={16}/></button>
+           <button onClick={() => handleDelete(item)} className="p-1.5 text-red-400 hover:bg-slate-700 rounded transition-colors"><Trash2 size={16}/></button>
         </div>
       ),
       width: '100px'
@@ -166,17 +195,15 @@ export const MenuManagement: React.FC = () => {
       <PageHeader title="메뉴 관리" />
       <div className="mb-4 p-4 bg-blue-900/20 border border-blue-800 rounded-lg text-sm text-blue-200 flex justify-between items-center">
         <div>
-          💡 <strong>Tip:</strong> PC와 모바일 환경에서 보여질 메뉴를 각각 설정할 수 있습니다.
-          <br/>
-          (설정 변경 시 즉시 반영됩니다.)
+          💡 <strong>Tip:</strong> 메뉴의 순서는 '순서' 값을 기준으로 정렬됩니다. PC와 모바일 노출 여부를 개별적으로 설정할 수 있습니다.
         </div>
-        {/* 신규 등록 버튼 제거됨 */}
+        {/* 신규 등록은 복잡성을 줄이기 위해 일단 제외하거나 필요시 추가 */}
       </div>
 
       {loading ? (
         <div className="text-center py-20 text-slate-500">Loading...</div>
       ) : (
-        <DataTable columns={columns} data={menus} />
+        <DataTable columns={columns} data={displayMenus} />
       )}
       
       {/* 하단 여백 추가 */}
@@ -218,7 +245,7 @@ export const MenuManagement: React.FC = () => {
                <InputGroup 
                   value={formData.path || ''} 
                   onChange={(e) => setFormData({...formData, path: e.target.value})} 
-                  placeholder="예: /users"
+                  placeholder="예: /users (폴더인 경우 비워두세요)"
                />
             </FormRow>
 

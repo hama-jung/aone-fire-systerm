@@ -121,7 +121,7 @@ export const MenuAPI = {
     return true;
   },
 
-  // 트리 구조로 변환된 메뉴 조회 (레이아웃용)
+  // 트리 구조로 변환된 메뉴 조회
   getTree: async () => {
     const { data, error } = await supabase
       .from('menus')
@@ -134,12 +134,18 @@ export const MenuAPI = {
     }
 
     const menus = data as MenuItemDB[];
-    const rootMenus = menus.filter(m => !m.parentId);
     
-    return rootMenus.map(root => ({
-      ...root,
-      children: menus.filter(child => child.parentId === root.id)
-    }));
+    // 재귀적으로 트리를 구성하는 헬퍼 함수
+    const buildTree = (parentId: number | null): MenuItemDB[] => {
+      return menus
+        .filter(menu => menu.parentId === parentId)
+        .map(menu => ({
+          ...menu,
+          children: buildTree(menu.id)
+        }));
+    };
+
+    return buildTree(null);
   }
 };
 

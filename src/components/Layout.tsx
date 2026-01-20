@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { 
   ChevronDown, ChevronRight, LogOut, Menu, Bell, Key, HelpCircle, User
@@ -84,6 +84,16 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  // 메뉴 데이터 로드 함수
+  const loadMenus = useCallback(async () => {
+    try {
+        const tree = await MenuAPI.getTree();
+        setMenuItems(tree);
+    } catch (e) {
+        console.error("Failed to load menus");
+    }
+  }, []);
+
   useEffect(() => {
     // 1. 사용자 정보 로드
     const userStr = localStorage.getItem('currentUser');
@@ -96,17 +106,17 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
       }
     }
 
-    // 2. 메뉴 데이터 로드
-    const loadMenus = async () => {
-        try {
-            const tree = await MenuAPI.getTree();
-            setMenuItems(tree);
-        } catch (e) {
-            console.error("Failed to load menus");
-        }
-    };
+    // 2. 초기 메뉴 로드
     loadMenus();
-  }, []);
+
+    // 3. 메뉴 업데이트 이벤트 리스너 등록
+    const handleMenuUpdate = () => loadMenus();
+    window.addEventListener('menu-update', handleMenuUpdate);
+
+    return () => {
+      window.removeEventListener('menu-update', handleMenuUpdate);
+    };
+  }, [loadMenus]);
 
   const handleLogout = () => {
     localStorage.removeItem('currentUser');
@@ -148,17 +158,21 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
   };
 
   // --- Menu Filtering Logic ---
-  // 현재 뷰포트(isMobileView)에 따라 보여줄 메뉴 필터링
+  // DB에서 가져온 트리 구조를 현재 뷰(PC/Mobile) 설정에 따라 필터링
   const getVisibleMenus = (menus: MenuItemDB[]): MenuItemDB[] => {
     return menus
       .filter(item => {
+        // 1. 현재 뷰에 따라 노출 여부 확인
         if (isMobileView) return item.isVisibleMobile;
         return item.isVisiblePc;
       })
       .map(item => ({
         ...item,
+        // 2. 자식 메뉴도 재귀적으로 필터링
         children: item.children ? getVisibleMenus(item.children) : undefined
       }))
+      // 3. 자식이 모두 필터링되어 사라졌는데, 본인도 경로가 없는 폴더(Folder)라면 숨김 처리 (옵션)
+      //    (현재는 폴더도 명시적으로 노출 설정되어 있으면 보이도록 유지)
   };
 
   const visibleMenuItems = getVisibleMenus(menuItems);
