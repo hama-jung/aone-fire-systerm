@@ -315,20 +315,20 @@ export const MarketAPI = {
       if (error) handleError(error);
       savedMarket = data;
 
-      // [Cascade Logic] If market is updated to '미사용', cascade update to all child tables
-      if (market.usageStatus === '미사용') {
+      // [Cascade Logic] If market usageStatus is updated, cascade update to all child tables
+      if (market.usageStatus === '미사용' || market.usageStatus === '사용') {
         const marketId = market.id;
+        const targetStatus = market.usageStatus; // '사용' or '미사용'
         try {
-          // All child tables now use 'status' column, so logic is unified and simple.
           const tables = ['stores', 'receivers', 'repeaters', 'detectors', 'transmitters', 'alarms'];
           
           await Promise.all(
             tables.map(table => 
-              supabase.from(table).update({ status: '미사용' }).eq('marketId', marketId)
+              supabase.from(table).update({ status: targetStatus }).eq('marketId', marketId)
             )
           );
         } catch (cascadeError) {
-          console.error("Failed to cascade '미사용' status:", cascadeError);
+          console.error(`Failed to cascade '${targetStatus}' status:`, cascadeError);
         }
       }
     }

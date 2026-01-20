@@ -501,9 +501,11 @@ export const MarketManagement: React.FC = () => {
                     name="usageStatus"
                     value={formData.usageStatus} 
                     onChange={(v) => {
-                      // Prompt: 사용여부 '미사용' 설정 시 경고창 띄우기
                       if (v === '미사용') {
                         alert("미사용으로 변경하면 상가, 기기도 모두 미사용으로 바뀝니다.");
+                      } else if (v === '사용' && selectedMarket) {
+                        // Prompt: '사용'으로 변경 시 경고창 (수정 모드일 때만)
+                        alert("사용으로 변경하면 상가, 기기도 모두 사용으로 바뀝니다. 미사용으로 개별 설정해야 합니다");
                       }
                       setFormData({...formData, usageStatus: v as any});
                     }}
