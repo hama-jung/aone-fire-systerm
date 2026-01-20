@@ -1,5 +1,5 @@
 import { supabase } from '../lib/supabaseClient';
-import { User, RoleItem, Market, Distributor, Store, WorkLog, Receiver, MenuItemDB } from '../types';
+import { User, RoleItem, Market, Distributor, Store, WorkLog, Receiver, Repeater, MenuItemDB } from '../types';
 
 /**
  * [Supabase 연동 완료]
@@ -497,6 +497,91 @@ export const ReceiverAPI = {
 
     const { data } = supabase.storage
       .from('receiver-images')
+      .getPublicUrl(filePath);
+
+    return data.publicUrl;
+  }
+};
+
+export const RepeaterAPI = {
+  getList: async (params?: { 
+    marketName?: string, 
+    receiverMac?: string, 
+    repeaterId?: string, 
+    alarmStatus?: string,
+    status?: string 
+  }) => {
+    let query = supabase
+      .from('repeaters')
+      .select('*, markets!inner(name)')
+      .order('id', { ascending: false });
+
+    if (params?.marketName) query = query.ilike('markets.name', `%${params.marketName}%`);
+    if (params?.receiverMac) query = query.ilike('receiverMac', `%${params.receiverMac}%`);
+    if (params?.repeaterId) query = query.eq('repeaterId', params.repeaterId);
+    if (params?.alarmStatus && params.alarmStatus !== '전체') query = query.eq('alarmStatus', params.alarmStatus);
+    if (params?.status && params.status !== '전체') query = query.eq('status', params.status);
+
+    const { data, error } = await query;
+    if (error) handleError(error);
+
+    return (data || []).map((item: any) => ({
+      ...item,
+      marketName: item.markets?.name
+    }));
+  },
+
+  save: async (repeater: Repeater) => {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { id, marketName, ...payload } = repeater;
+
+    if (repeater.id === 0) {
+      const { data, error } = await supabase.from('repeaters').insert(payload).select().single();
+      if (error) handleError(error);
+      return data;
+    } else {
+      const { data, error } = await supabase.from('repeaters').update(payload).eq('id', repeater.id).select().single();
+      if (error) handleError(error);
+      return data;
+    }
+  },
+
+  saveBulk: async (repeaters: Repeater[]) => {
+    if (repeaters.length === 0) return;
+    const payload = repeaters.map(r => {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { id, marketName, ...rest } = r;
+      return rest;
+    });
+    const { error } = await supabase.from('repeaters').insert(payload);
+    if (error) handleError(error);
+    return true;
+  },
+
+  delete: async (id: number) => {
+    const { error } = await supabase.from('repeaters').delete().eq('id', id);
+    if (error) handleError(error);
+    return true;
+  },
+
+  uploadImage: async (file: File): Promise<string> => {
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
+    const filePath = `repeaters/${fileName}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from('repeater-images')
+      .upload(filePath, file);
+
+    if (uploadError) {
+      if (uploadError.message.includes('Bucket not found')) {
+          throw new Error("스토리지 버킷(repeater-images)이 없습니다. supabase_repeaters.sql을 실행해주세요.");
+      }
+      throw new Error(`이미지 업로드 실패: ${uploadError.message}`);
+    }
+
+    const { data } = supabase.storage
+      .from('repeater-images')
       .getPublicUrl(filePath);
 
     return data.publicUrl;

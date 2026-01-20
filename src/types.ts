@@ -103,6 +103,18 @@ export interface Receiver {
   status: '사용' | '미사용';
 }
 
+export interface Repeater {
+  id: number;
+  marketId: number;
+  marketName?: string; // Join
+  receiverMac: string;
+  repeaterId: string; // '01' ~ '20'
+  alarmStatus: '사용' | '미사용'; // 경종 사용여부
+  location?: string;
+  image?: string;
+  status: '사용' | '미사용';
+}
+
 export interface Distributor {
   id: number;
   name: string;           // 총판명

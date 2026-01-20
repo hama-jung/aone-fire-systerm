@@ -11,6 +11,7 @@ import { DistributorManagement } from './pages/DistributorManagement';
 import { SmsTransmission } from './pages/SmsTransmission';
 import { WorkLogManagement } from './pages/WorkLogManagement';
 import { ReceiverManagement } from './pages/ReceiverManagement';
+import { RepeaterManagement } from './pages/RepeaterManagement';
 import { MenuManagement } from './pages/MenuManagement';
 
 // Placeholder components for routes not fully implemented
@@ -42,10 +43,10 @@ const App: React.FC = () => {
               <Route path="/sms" element={<SmsTransmission />} />
               <Route path="/work-logs" element={<WorkLogManagement />} />
               <Route path="/receivers" element={<ReceiverManagement />} />
+              <Route path="/repeaters" element={<RepeaterManagement />} />
               <Route path="/menus" element={<MenuManagement />} />
               
               {/* Placeholders for other menu items */}
-              <Route path="/repeaters" element={<PlaceholderPage title="중계기 관리" />} />
               <Route path="/detectors" element={<PlaceholderPage title="화재감지기 관리" />} />
               <Route path="/fire-history" element={<PlaceholderPage title="화재 이력 관리" />} />
               <Route path="/device-status" element={<PlaceholderPage title="기기 상태 관리" />} />
