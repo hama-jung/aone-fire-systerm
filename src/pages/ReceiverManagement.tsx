@@ -569,7 +569,7 @@ export const ReceiverManagement: React.FC = () => {
   // --- View: List ---
   return (
     <>
-      <PageHeader title="R형 수신기 목록" />
+      <PageHeader title="R형 수신기 관리" />
       
       <SearchFilterBar onSearch={handleSearch} onReset={handleReset} isFiltered={isFiltered}>
         <InputGroup 

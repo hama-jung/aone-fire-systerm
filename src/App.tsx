@@ -50,7 +50,6 @@ const App: React.FC = () => {
               <Route path="/detectors" element={<PlaceholderPage title="화재감지기 관리" />} />
               <Route path="/fire-history" element={<PlaceholderPage title="화재 이력 관리" />} />
               <Route path="/device-status" element={<PlaceholderPage title="기기 상태 관리" />} />
-              <Route path="/access-logs" element={<PlaceholderPage title="접속 로그" />} />
               
               <Route path="*" element={<Navigate to="/dashboard" replace />} />
             </Routes>

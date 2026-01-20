@@ -54,8 +54,8 @@ begin
   (parent_id, '문자 전송', '/sms', 50, true, false),
   (parent_id, '작업일지', '/work-logs', 60, true, true),
   (parent_id, '롤 관리', '/roles', 70, true, false),
-  (parent_id, '메뉴 관리', '/menus', 80, true, false),
-  (parent_id, '접속 로그', '/access-logs', 90, true, false);
+  (parent_id, '메뉴 관리', '/menus', 80, true, false);
+  -- 접속 로그 삭제됨
 end $$;
 
 -- 3. Device Management (폴더)
@@ -70,7 +70,7 @@ begin
   select id into parent_id from public.menus where label = '기기 관리';
   
   insert into public.menus ("parentId", label, path, "sortOrder", "isVisiblePc", "isVisibleMobile") values
-  (parent_id, 'R형 수신기', '/receivers', 10, true, false),
+  (parent_id, 'R형 수신기 관리', '/receivers', 10, true, false), -- 이름 변경
   (parent_id, '중계기 관리', '/repeaters', 20, true, false),
   (parent_id, '화재감지기', '/detectors', 30, true, false);
 end $$;

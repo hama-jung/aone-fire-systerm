@@ -351,15 +351,9 @@ export const WorkLogManagement: React.FC = () => {
   // --- View: List ---
   return (
     <>
-      <PageHeader title="작업일지 리스트" />
-      <div className="border-t-2 border-blue-500 mb-6"></div>
-
-      <div className="flex flex-col gap-2 mb-6">
-        <label className="text-blue-400 font-bold">작업일시</label>
-        {/* 날짜 검색 등 필터 영역이 필요하다면 여기에 SearchFilterBar 배치 */}
-      </div>
-
-      <div className="flex justify-between items-end mb-2">
+      <PageHeader title="작업일지" />
+      
+      <div className="flex justify-between items-end mb-2 mt-4">
          <span className="text-sm text-slate-400">
            전체 {logs.length} 개 (페이지 {currentPage})
          </span>
