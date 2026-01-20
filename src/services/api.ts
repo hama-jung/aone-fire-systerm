@@ -12,6 +12,110 @@ const handleError = (error: any) => {
   throw new Error(error.message || "데이터 처리 중 오류가 발생했습니다.");
 };
 
+// --- Helper: 기기 데이터 동기화 (상가 -> 기기) ---
+// 상가 정보(MAC, 중계기ID, 감지기ID)가 저장될 때, 해당 기기가 없으면 자동 생성합니다.
+const syncDevicesFromStoreData = async (store: Store) => {
+  if (!store.marketId || !store.receiverMac) return;
+
+  try {
+    // 1. 수신기 동기화 (Receiver)
+    // 해당 MAC의 수신기가 있는지 확인
+    const { data: existingReceiver } = await supabase
+      .from('receivers')
+      .select('id')
+      .eq('macAddress', store.receiverMac)
+      .limit(1)
+      .maybeSingle();
+
+    if (!existingReceiver) {
+      // 없으면 생성
+      await supabase.from('receivers').insert({
+        marketId: store.marketId,
+        macAddress: store.receiverMac,
+        status: '사용',
+        transmissionInterval: '01시간' // 기본값
+      });
+    }
+
+    // 2. 중계기 동기화 (Repeater)
+    if (store.repeaterId) {
+      const { data: existingRepeater } = await supabase
+        .from('repeaters')
+        .select('id')
+        .eq('receiverMac', store.receiverMac)
+        .eq('repeaterId', store.repeaterId)
+        .limit(1)
+        .maybeSingle();
+
+      if (!existingRepeater) {
+        await supabase.from('repeaters').insert({
+          marketId: store.marketId,
+          receiverMac: store.receiverMac,
+          repeaterId: store.repeaterId,
+          status: '사용',
+          alarmStatus: '사용'
+        });
+      }
+
+      // 3. 감지기 동기화 (Detector)
+      if (store.detectorId) {
+        let detectorIdToLink: number | null = null;
+
+        const { data: existingDetector } = await supabase
+          .from('detectors')
+          .select('id')
+          .eq('receiverMac', store.receiverMac)
+          .eq('repeaterId', store.repeaterId)
+          .eq('detectorId', store.detectorId)
+          .limit(1)
+          .maybeSingle();
+
+        if (!existingDetector) {
+          // 감지기 생성
+          const { data: newDetector, error: createError } = await supabase
+            .from('detectors')
+            .insert({
+              marketId: store.marketId,
+              receiverMac: store.receiverMac,
+              repeaterId: store.repeaterId,
+              detectorId: store.detectorId,
+              mode: store.mode || '복합',
+              status: '사용'
+            })
+            .select()
+            .single();
+          
+          if (!createError && newDetector) {
+            detectorIdToLink = newDetector.id;
+          }
+        } else {
+          detectorIdToLink = existingDetector.id;
+        }
+
+        // 4. 감지기-상가 매핑 테이블 동기화 (Detector Stores)
+        if (detectorIdToLink && store.id) {
+          const { data: mapping } = await supabase
+            .from('detector_stores')
+            .select('id')
+            .eq('detectorId', detectorIdToLink)
+            .eq('storeId', store.id)
+            .maybeSingle();
+
+          if (!mapping) {
+            await supabase.from('detector_stores').insert({
+              detectorId: detectorIdToLink,
+              storeId: store.id
+            });
+          }
+        }
+      }
+    }
+  } catch (err) {
+    console.error("Device Sync Failed:", err);
+  }
+};
+
+
 // --- API Services ---
 
 export const AuthAPI = {
@@ -62,7 +166,6 @@ export const AuthAPI = {
 };
 
 export const MenuAPI = {
-  // 전체 메뉴 목록 조회 (계층 구조 없이 Flat List)
   getAll: async () => {
     const { data, error } = await supabase
       .from('menus')
@@ -73,7 +176,6 @@ export const MenuAPI = {
     return data as MenuItemDB[];
   },
 
-  // 메뉴 노출 상태 토글 (PC/Mobile) - 기존 유지
   toggleVisibility: async (id: number, field: 'isVisiblePc' | 'isVisibleMobile', value: boolean) => {
     const { error } = await supabase
       .from('menus')
@@ -84,35 +186,29 @@ export const MenuAPI = {
     return true;
   },
 
-  // 메뉴 저장 (신규/수정)
   save: async (menu: MenuItemDB) => {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { id, children, ...payload } = menu; // children은 DB 컬럼이 아니므로 제외
+    const { id, children, ...payload } = menu; 
     
-    // parentId가 0이거나 falsy하면 null로 처리 (최상위 메뉴)
     const dbPayload = {
         ...payload,
         parentId: payload.parentId ? payload.parentId : null
     };
 
     if (menu.id === 0) {
-      // Create
       const { data, error } = await supabase.from('menus').insert(dbPayload).select().single();
       if (error) handleError(error);
       return data;
     } else {
-      // Update
       const { data, error } = await supabase.from('menus').update(dbPayload).eq('id', menu.id).select().single();
       if (error) handleError(error);
       return data;
     }
   },
 
-  // 메뉴 삭제
   delete: async (id: number) => {
     const { error } = await supabase.from('menus').delete().eq('id', id);
     if (error) {
-       // 자식 메뉴가 있는 경우 FK 제약조건 에러 발생 가능
        if (error.message.includes('foreign key constraint')) {
          throw new Error('하위 메뉴가 존재하는 메뉴는 삭제할 수 없습니다. 하위 메뉴를 먼저 삭제하거나 이동해주세요.');
        }
@@ -121,7 +217,6 @@ export const MenuAPI = {
     return true;
   },
 
-  // 트리 구조로 변환된 메뉴 조회
   getTree: async () => {
     const { data, error } = await supabase
       .from('menus')
@@ -135,7 +230,6 @@ export const MenuAPI = {
 
     const menus = data as MenuItemDB[];
     
-    // 재귀적으로 트리를 구성하는 헬퍼 함수
     const buildTree = (parentId: number | null): MenuItemDB[] => {
       return menus
         .filter(menu => menu.parentId === parentId)
@@ -418,31 +512,41 @@ export const StoreAPI = {
   save: async (store: Store) => {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { id, marketName, ...storeData } = store;
+    let savedData: Store;
 
     if (store.id === 0) {
       const { data, error } = await supabase.from('stores').insert(storeData).select().single();
       if (error) handleError(error);
-      return data;
+      savedData = data as Store;
     } else {
       const { data, error } = await supabase.from('stores').update(storeData).eq('id', store.id).select().single();
       if (error) handleError(error);
-      return data;
+      savedData = data as Store;
     }
+
+    // [중요] 상가 정보 저장 후, 기기 정보(수신기, 중계기, 감지기) 동기화
+    await syncDevicesFromStoreData(savedData);
+
+    return savedData;
   },
 
   // 엑셀 일괄 등록용 (bulk insert)
   saveBulk: async (stores: Store[]) => {
     if (stores.length === 0) return;
 
-    // marketName 등 DB에 없는 필드 제거
-    const dbDataList = stores.map(store => {
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const { id, marketName, ...rest } = store;
-      return rest;
-    });
-
-    const { error } = await supabase.from('stores').insert(dbDataList);
-    if (error) handleError(error);
+    // 1. 순차적으로 저장하여 동기화 로직 수행 (Bulk insert는 트리거 없이는 로직 수행 불가하므로 반복문 사용)
+    for (const store of stores) {
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { id, marketName, ...rest } = store;
+        const { data, error } = await supabase.from('stores').insert(rest).select().single();
+        if (error) {
+            console.error("Bulk Save Error for store:", store.name, error);
+            // 하나 실패해도 나머지는 진행
+            continue; 
+        }
+        // 기기 동기화 (기기 자동 생성)
+        await syncDevicesFromStoreData(data as Store);
+    }
     return true;
   },
 
@@ -475,6 +579,21 @@ export const ReceiverAPI = {
   },
 
   save: async (receiver: Receiver) => {
+    // 1. 중복 체크 (MAC Address)
+    if (receiver.macAddress) {
+      let checkQuery = supabase.from('receivers').select('id').eq('macAddress', receiver.macAddress);
+      
+      // 수정 시에는 자기 자신 제외
+      if (receiver.id !== 0) {
+        checkQuery = checkQuery.neq('id', receiver.id);
+      }
+      
+      const { data: duplicate } = await checkQuery.maybeSingle();
+      if (duplicate) {
+        throw new Error('이미 등록된 기기입니다. (MAC 주소 중복)');
+      }
+    }
+
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { id, marketName, ...payload } = receiver;
 
@@ -491,11 +610,48 @@ export const ReceiverAPI = {
 
   saveBulk: async (receivers: Receiver[]) => {
     if (receivers.length === 0) return;
+
+    const errors: string[] = [];
+    const seenMacs = new Set<string>();
+
+    // 1. 엑셀 파일 내 중복 검사 & DB 중복 검사 (Batch)
+    for (let i = 0; i < receivers.length; i++) {
+        const row = receivers[i];
+        const rowNum = i + 1;
+
+        if (!row.macAddress) {
+            errors.push(`[${rowNum}행] MAC 주소가 없습니다.`);
+            continue;
+        }
+
+        if (seenMacs.has(row.macAddress)) {
+            errors.push(`[${rowNum}행] 엑셀 파일 내 중복된 MAC 주소입니다: ${row.macAddress}`);
+            continue;
+        }
+        seenMacs.add(row.macAddress);
+
+        // DB 중복 확인
+        const { count } = await supabase.from('receivers')
+            .select('id', { count: 'exact', head: true })
+            .eq('macAddress', row.macAddress);
+        
+        if (count && count > 0) {
+            errors.push(`[${rowNum}행] 이미 시스템에 등록된 기기입니다: ${row.macAddress}`);
+        }
+    }
+
+    // 에러가 하나라도 있으면 전체 중단
+    if (errors.length > 0) {
+        throw new Error(`데이터 검증 실패 (${errors.length}건):\n` + errors.slice(0, 5).join('\n') + (errors.length > 5 ? '\n...외 다수' : ''));
+    }
+
+    // 2. 일괄 등록 수행
     const payload = receivers.map(r => {
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { id, marketName, ...rest } = r;
       return rest;
     });
+    
     const { error } = await supabase.from('receivers').insert(payload);
     if (error) handleError(error);
     return true;
@@ -560,6 +716,23 @@ export const RepeaterAPI = {
   },
 
   save: async (repeater: Repeater) => {
+    // 1. 중복 체크 (ReceiverMAC + RepeaterID)
+    if (repeater.receiverMac && repeater.repeaterId) {
+      let checkQuery = supabase.from('repeaters')
+        .select('id')
+        .eq('receiverMac', repeater.receiverMac)
+        .eq('repeaterId', repeater.repeaterId);
+      
+      if (repeater.id !== 0) {
+        checkQuery = checkQuery.neq('id', repeater.id);
+      }
+
+      const { data: duplicate } = await checkQuery.maybeSingle();
+      if (duplicate) {
+        throw new Error('이미 등록된 기기입니다. (해당 수신기에 동일한 중계기 ID 존재)');
+      }
+    }
+
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { id, marketName, ...payload } = repeater;
 
@@ -576,6 +749,41 @@ export const RepeaterAPI = {
 
   saveBulk: async (repeaters: Repeater[]) => {
     if (repeaters.length === 0) return;
+
+    const errors: string[] = [];
+    const seenIds = new Set<string>(); // Key: ReceiverMAC_RepeaterID
+
+    // 1. 검증 Loop
+    for (let i = 0; i < repeaters.length; i++) {
+        const row = repeaters[i];
+        const rowNum = i + 1;
+        const key = `${row.receiverMac}_${row.repeaterId}`;
+
+        if (!row.receiverMac || !row.repeaterId) {
+            errors.push(`[${rowNum}행] 수신기MAC 또는 중계기ID가 없습니다.`);
+            continue;
+        }
+
+        if (seenIds.has(key)) {
+            errors.push(`[${rowNum}행] 엑셀 파일 내 중복된 중계기입니다: ${row.receiverMac} - ${row.repeaterId}`);
+            continue;
+        }
+        seenIds.add(key);
+
+        const { count } = await supabase.from('repeaters')
+            .select('id', { count: 'exact', head: true })
+            .eq('receiverMac', row.receiverMac)
+            .eq('repeaterId', row.repeaterId);
+        
+        if (count && count > 0) {
+            errors.push(`[${rowNum}행] 이미 등록된 기기입니다: ${row.receiverMac} - ${row.repeaterId}`);
+        }
+    }
+
+    if (errors.length > 0) {
+        throw new Error(`데이터 검증 실패 (${errors.length}건):\n` + errors.slice(0, 5).join('\n') + (errors.length > 5 ? '\n...외 다수' : ''));
+    }
+
     const payload = repeaters.map(r => {
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { id, marketName, ...rest } = r;
@@ -657,8 +865,25 @@ export const DetectorAPI = {
   },
 
   save: async (detector: Detector) => {
+    // 1. 중복 체크 (ReceiverMAC + RepeaterID + DetectorID)
+    if (detector.receiverMac && detector.repeaterId && detector.detectorId) {
+      let checkQuery = supabase.from('detectors')
+        .select('id')
+        .eq('receiverMac', detector.receiverMac)
+        .eq('repeaterId', detector.repeaterId)
+        .eq('detectorId', detector.detectorId);
+      
+      if (detector.id !== 0) {
+        checkQuery = checkQuery.neq('id', detector.id);
+      }
+
+      const { data: duplicate } = await checkQuery.maybeSingle();
+      if (duplicate) {
+        throw new Error('이미 등록된 기기입니다. (해당 중계기에 동일한 감지기 ID 존재)');
+      }
+    }
+
     // 1. 순수 Detector 데이터만 추출 (DB 컬럼에 맞게)
-    // marketName, stores 등 UI용 데이터는 제외
     const detectorPayload = {
       marketId: detector.marketId,
       receiverMac: detector.receiverMac,
@@ -666,7 +891,7 @@ export const DetectorAPI = {
       detectorId: detector.detectorId,
       mode: detector.mode,
       cctvUrl: detector.cctvUrl,
-      status: detector.status, // unified name
+      status: detector.status,
       smsList: detector.smsList,
       memo: detector.memo
     };
@@ -684,7 +909,6 @@ export const DetectorAPI = {
     }
 
     // 3. 연결된 상가 저장 (Junction Table)
-    // 기존 매핑 삭제 후 재등록 방식
     const { error: deleteError } = await supabase.from('detector_stores').delete().eq('detectorId', savedDetectorId);
     if (deleteError) handleError(deleteError);
 
@@ -695,6 +919,20 @@ export const DetectorAPI = {
       }));
       const { error: insertError } = await supabase.from('detector_stores').insert(storeInserts);
       if (insertError) handleError(insertError);
+
+      // [중요] 연결된 상가들의 Device 정보를 역으로 업데이트
+      // 상가 관리 메뉴에서도 해당 감지기 정보가 보이도록 동기화
+      try {
+        await Promise.all(detector.stores.map(s => 
+          supabase.from('stores').update({
+            receiverMac: detector.receiverMac,
+            repeaterId: detector.repeaterId,
+            detectorId: detector.detectorId
+          }).eq('id', s.id)
+        ));
+      } catch (syncError) {
+        console.error("Failed to sync updated detector info to stores:", syncError);
+      }
     }
 
     return true;
@@ -703,23 +941,84 @@ export const DetectorAPI = {
   saveBulk: async (detectors: Detector[]) => {
     if (detectors.length === 0) return;
     
-    // 일괄 등록은 복잡하므로, 일단 기본 정보만 detector 테이블에 넣고
-    // 상가 매핑은 생략하거나 (엑셀에 상가명이 텍스트로 있어서 ID 매칭이 어려움)
-    // 여기서는 detector_stores 로직 생략하고 기본 정보만 저장
-    
-    const payload = detectors.map(d => ({
-        marketId: d.marketId,
-        receiverMac: d.receiverMac,
-        repeaterId: d.repeaterId,
-        detectorId: d.detectorId,
-        mode: d.mode,
-        cctvUrl: d.cctvUrl,
-        status: d.status, // unified name
-        memo: d.memo
-    }));
-    
-    const { error } = await supabase.from('detectors').insert(payload);
-    if (error) handleError(error);
+    const errors: string[] = [];
+    const seenIds = new Set<string>(); // Key: ReceiverMAC_RepeaterID_DetectorID
+
+    // 1. 검증 Loop (전체 데이터 무결성 체크)
+    for (let i = 0; i < detectors.length; i++) {
+        const row = detectors[i];
+        const rowNum = i + 1;
+        const key = `${row.receiverMac}_${row.repeaterId}_${row.detectorId}`;
+
+        if (!row.receiverMac || !row.repeaterId || !row.detectorId) {
+            errors.push(`[${rowNum}행] 수신기MAC, 중계기ID, 감지기ID는 필수입니다.`);
+            continue;
+        }
+
+        if (seenIds.has(key)) {
+            errors.push(`[${rowNum}행] 엑셀 파일 내 중복된 감지기입니다: ${key}`);
+            continue;
+        }
+        seenIds.add(key);
+
+        const { count } = await supabase.from('detectors')
+            .select('id', { count: 'exact', head: true })
+            .eq('receiverMac', row.receiverMac)
+            .eq('repeaterId', row.repeaterId)
+            .eq('detectorId', row.detectorId);
+        
+        if (count && count > 0) {
+            errors.push(`[${rowNum}행] 이미 등록된 기기입니다: ${key}`);
+        }
+    }
+
+    if (errors.length > 0) {
+        throw new Error(`데이터 검증 실패 (${errors.length}건):\n` + errors.slice(0, 5).join('\n') + (errors.length > 5 ? '\n...외 다수' : ''));
+    }
+
+    // 2. 등록 실행 (순차 등록하여 상가 매핑 로직 수행)
+    for (const d of detectors) {
+        // 감지기 기본 정보 저장
+        const payload = {
+            marketId: d.marketId,
+            receiverMac: d.receiverMac,
+            repeaterId: d.repeaterId,
+            detectorId: d.detectorId,
+            mode: d.mode,
+            cctvUrl: d.cctvUrl,
+            status: d.status,
+            memo: d.memo
+        };
+        const { data: savedDetector, error } = await supabase.from('detectors').insert(payload).select().single();
+        
+        if (error) {
+            // 위에서 검증했더라도 동시성 이슈 등으로 실패할 수 있음
+            console.error("Bulk Insert Error:", error);
+            continue;
+        }
+
+        // 상가 연동
+        if (d.stores && d.stores.length > 0) {
+            const storeName = d.stores[0].name;
+            const { data: storeData } = await supabase.from('stores')
+                .select('id')
+                .eq('marketId', d.marketId)
+                .eq('name', storeName)
+                .maybeSingle();
+
+            if (storeData) {
+                await supabase.from('detector_stores').insert({
+                    detectorId: savedDetector.id,
+                    storeId: storeData.id
+                });
+                await supabase.from('stores').update({
+                    receiverMac: d.receiverMac,
+                    repeaterId: d.repeaterId,
+                    detectorId: d.detectorId
+                }).eq('id', storeData.id);
+            }
+        }
+    }
     return true;
   },
 
