@@ -1,0 +1,534 @@
+import React, { useState, useEffect, useCallback } from 'react';
+import { 
+  PageHeader, InputGroup, Button, DataTable, Pagination, FormSection, FormRow, Column, Modal, SearchFilterBar, UI_STYLES
+} from '../components/CommonUI';
+import { User } from '../types';
+import { UserAPI } from '../services/api';
+import { Send, UserPlus, Trash2, List, Smartphone, X } from 'lucide-react';
+
+const ITEMS_PER_PAGE = 10;
+
+// 수신자 인터페이스
+interface Receiver {
+  id: string | number;
+  userId?: string;
+  name: string;
+  department?: string;
+  phone: string;
+  smsReceive?: string;
+  isManual: boolean; // 수동 추가 여부
+}
+
+// 전송 이력 인터페이스
+interface SmsHistoryItem {
+  id: number;
+  date: string;
+  type: string;
+  category: string;
+  count: number;
+  success: number;
+  fail: number;
+  refusal: number;
+  subject: string;
+}
+
+export const SmsTransmission: React.FC = () => {
+  // View State: 'compose' (작성화면) | 'history' (전송목록)
+  const [view, setView] = useState<'compose' | 'history'>('compose');
+
+  // --- Compose State ---
+  const [subject, setSubject] = useState('');
+  const [content, setContent] = useState('');
+  const [senderPhone, setSenderPhone] = useState('032-1111-2222');
+  
+  // Receiver List
+  const [receivers, setReceivers] = useState<Receiver[]>([]);
+  const [checkedReceiverIds, setCheckedReceiverIds] = useState<Set<string | number>>(new Set());
+  
+  // Manual Input State
+  const [manualName, setManualName] = useState('');
+  const [manualPhone, setManualPhone] = useState('');
+
+  // User Modal State
+  const [isUserModalOpen, setIsUserModalOpen] = useState(false);
+  const [userList, setUserList] = useState<User[]>([]);
+  const [modalSearchName, setModalSearchName] = useState('');
+  const [modalSearchDept, setModalSearchDept] = useState('');
+  const [modalSelectedIds, setModalSelectedIds] = useState<Set<number>>(new Set());
+  const [modalPage, setModalPage] = useState(1);
+
+  // --- History State ---
+  const [historyList, setHistoryList] = useState<SmsHistoryItem[]>([]);
+  const [historyPage, setHistoryPage] = useState(1);
+  const [currentDate, setCurrentDate] = useState(new Date());
+
+  // --- Byte Calculation ---
+  const getByteLength = (s: string) => {
+    let b = 0, i = 0, c;
+    for (; c = s.charCodeAt(i++); b += c >> 11 ? 2 : 1); // 한글 2바이트 처리
+    return b;
+  };
+  const currentBytes = getByteLength(content);
+  const maxBytes = 2000; // LMS 기준
+
+  // --- Handlers: Manual Add ---
+  const handleManualPhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value.replace(/[^0-9]/g, ''); // 숫자만 허용
+    setManualPhone(val);
+  };
+
+  const handleAddManual = () => {
+    if (!manualName || !manualPhone) {
+      alert('수신자명과 휴대폰번호를 입력해주세요.');
+      return;
+    }
+    const newReceiver: Receiver = {
+      id: `manual_${Date.now()}`,
+      name: manualName,
+      phone: manualPhone,
+      isManual: true,
+      department: '-',
+      userId: '-',
+      smsReceive: '수동'
+    };
+    setReceivers([...receivers, newReceiver]);
+    setManualName('');
+    setManualPhone('');
+  };
+
+  // --- Handlers: User Modal ---
+  const fetchUsers = async () => {
+    // 실제로는 API 호출 시 필터링
+    const users = await UserAPI.getList({ name: modalSearchName, department: modalSearchDept });
+    // '사용' 상태인 사용자만 필터링
+    const activeUsers = users.filter(u => u.status === '사용');
+    setUserList(activeUsers);
+    setModalPage(1);
+  };
+
+  const openUserModal = () => {
+    setModalSearchName('');
+    setModalSearchDept('');
+    setModalSelectedIds(new Set());
+    fetchUsers();
+    setIsUserModalOpen(true);
+  };
+
+  const toggleModalUserSelect = (id: number) => {
+    const newSet = new Set(modalSelectedIds);
+    if (newSet.has(id)) newSet.delete(id);
+    else newSet.add(id);
+    setModalSelectedIds(newSet);
+  };
+
+  const handleAddSelectedUsers = () => {
+    const selectedUsers = userList.filter(u => modalSelectedIds.has(u.id));
+    const newReceivers: Receiver[] = selectedUsers.map(u => ({
+      id: u.id,
+      userId: u.userId,
+      name: u.name,
+      department: u.department || '-',
+      phone: u.phone,
+      smsReceive: u.smsReceive || '-',
+      isManual: false
+    }));
+
+    // 중복 제거 (이미 리스트에 있는 ID는 제외)
+    const existingIds = new Set(receivers.map(r => r.id));
+    const uniqueNewReceivers = newReceivers.filter(r => !existingIds.has(r.id));
+
+    setReceivers([...receivers, ...uniqueNewReceivers]);
+    setIsUserModalOpen(false);
+  };
+
+  // --- Handlers: Receiver List ---
+  const toggleReceiverCheck = (id: string | number) => {
+    const newSet = new Set(checkedReceiverIds);
+    if (newSet.has(id)) newSet.delete(id);
+    else newSet.add(id);
+    setCheckedReceiverIds(newSet);
+  };
+
+  const toggleAllReceivers = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.checked) {
+      setCheckedReceiverIds(new Set(receivers.map(r => r.id)));
+    } else {
+      setCheckedReceiverIds(new Set());
+    }
+  };
+
+  const handleDeleteChecked = () => {
+    if (checkedReceiverIds.size === 0) {
+      alert('삭제할 항목을 선택해주세요.');
+      return;
+    }
+    if (confirm(`선택한 ${checkedReceiverIds.size}명을 목록에서 삭제하시겠습니까?`)) {
+      setReceivers(receivers.filter(r => !checkedReceiverIds.has(r.id)));
+      setCheckedReceiverIds(new Set());
+    }
+  };
+
+  // --- Handlers: Send SMS ---
+  const handleSendSms = () => {
+    if (receivers.length === 0) {
+      alert('수신자를 1명 이상 추가해주세요.');
+      return;
+    }
+    if (!content) {
+      alert('내용을 입력해주세요.');
+      return;
+    }
+
+    if (confirm('전송하시겠습니까?')) {
+      // API Call Mock Logic here...
+      alert('전송 요청이 완료되었습니다.');
+      // 화면 새로고침 효과 (상태 초기화)
+      setSubject('');
+      setContent('');
+      setReceivers([]);
+      setCheckedReceiverIds(new Set());
+      setManualName('');
+      setManualPhone('');
+    }
+  };
+
+  // --- Handlers: History Mock Data ---
+  useEffect(() => {
+    if (view === 'history') {
+      // Mock History Data
+      const mockHistory: SmsHistoryItem[] = Array.from({ length: 15 }).map((_, i) => ({
+        id: i + 1,
+        date: '2026-01-15 14:30',
+        type: 'SMS',
+        category: '일반',
+        count: Math.floor(Math.random() * 50) + 1,
+        success: Math.floor(Math.random() * 40) + 1,
+        fail: 0,
+        refusal: 0,
+        subject: `테스트 문자 발송 ${i + 1}`
+      }));
+      setHistoryList(mockHistory);
+    }
+  }, [view]);
+
+  // --- Columns Definitions ---
+  const receiverColumns: Column<Receiver>[] = [
+    { 
+      header: '선택', 
+      accessor: (row) => (
+        <input 
+          type="checkbox" 
+          checked={checkedReceiverIds.has(row.id)}
+          onChange={() => toggleReceiverCheck(row.id)}
+          className="w-4 h-4 accent-blue-500"
+        />
+      ), 
+      width: '50px' 
+    },
+    { header: 'No', accessor: (_, idx) => idx !== undefined ? idx + 1 : 0, width: '60px' },
+    { header: '사용자ID', accessor: (row) => row.userId || '-', width: '120px' },
+    { header: '이 름', accessor: 'name' },
+    { header: '업체명', accessor: 'department' },
+    { header: '연락처', accessor: 'phone' },
+    { header: 'SMS 수신여부', accessor: 'smsReceive', width: '120px' },
+  ];
+
+  const modalColumns: Column<User>[] = [
+    { 
+      header: '선택', 
+      accessor: (row) => (
+        <input 
+          type="checkbox" 
+          checked={modalSelectedIds.has(row.id)}
+          onChange={() => toggleModalUserSelect(row.id)}
+          className="w-4 h-4 accent-blue-500"
+        />
+      ), 
+      width: '50px' 
+    },
+    { header: '사용자ID', accessor: 'userId' },
+    { header: '성명', accessor: 'name' },
+    { header: '소속', accessor: 'department' },
+    { header: '연락처', accessor: 'phone' },
+  ];
+
+  const historyColumns: Column<SmsHistoryItem>[] = [
+    { header: '번호', accessor: 'id', width: '60px' },
+    { header: '전송일', accessor: 'date' },
+    { header: '전송 구분', accessor: 'type' },
+    { header: '문자 구분', accessor: 'category' },
+    { header: '전송 건수', accessor: 'count' },
+    { header: '성공', accessor: 'success', width: '80px' },
+    { header: '실패', accessor: 'fail', width: '80px' },
+    { header: '수신거부', accessor: 'refusal', width: '80px' },
+    { header: '문자 제목/내용', accessor: 'subject' },
+  ];
+
+  // --- Render Views ---
+
+  // 1. History View
+  if (view === 'history') {
+    const historyLastIdx = historyPage * ITEMS_PER_PAGE;
+    const historyFirstIdx = historyLastIdx - ITEMS_PER_PAGE;
+    const currentHistory = historyList.slice(historyFirstIdx, historyLastIdx);
+
+    return (
+      <>
+        <div className="flex items-center justify-between mb-6 border-b border-slate-700 pb-4">
+          <div className="flex items-center gap-4">
+             <button onClick={() => setView('compose')} className="p-2 hover:bg-slate-800 rounded-full transition-colors">
+                <X size={24} className="text-slate-400" />
+             </button>
+             <h1 className="text-xl font-bold text-slate-100 flex items-center gap-2">
+                <List size={20} />
+                전송 목록 (결과)
+             </h1>
+          </div>
+          <div className="flex items-center gap-4 bg-slate-800 px-4 py-2 rounded-lg border border-slate-700">
+             <button 
+                onClick={() => setCurrentDate(new Date(currentDate.setMonth(currentDate.getMonth() - 1)))}
+                className="text-slate-400 hover:text-white"
+             >
+                ◀
+             </button>
+             <span className="text-lg font-bold text-slate-200">
+                {currentDate.getFullYear()}년 {String(currentDate.getMonth() + 1).padStart(2, '0')}월
+             </span>
+             <button 
+                onClick={() => setCurrentDate(new Date(currentDate.setMonth(currentDate.getMonth() + 1)))}
+                className="text-slate-400 hover:text-white"
+             >
+                ▶
+             </button>
+          </div>
+        </div>
+
+        <div className="bg-slate-800 rounded-lg p-4 mb-4 border border-slate-700 flex justify-end gap-6 text-sm">
+           <span className="text-slate-400">오늘 전송수: <strong className="text-white">0개 / 0건</strong></span>
+           <span className="text-slate-400">이달 누적 전송수: <strong className="text-white">0개 / 0건</strong></span>
+        </div>
+
+        <DataTable columns={historyColumns} data={currentHistory} />
+        <Pagination 
+           totalItems={historyList.length} 
+           itemsPerPage={ITEMS_PER_PAGE} 
+           currentPage={historyPage} 
+           onPageChange={setHistoryPage} 
+        />
+      </>
+    );
+  }
+
+  // 2. Compose View (Main)
+  // Pagination logic for modal
+  const modalLastIdx = modalPage * Modal_ITEMS_PER_PAGE_CONST;
+  const modalFirstIdx = modalLastIdx - Modal_ITEMS_PER_PAGE_CONST;
+  const currentModalUsers = userList.slice(modalFirstIdx, modalLastIdx);
+
+  return (
+    <>
+      <PageHeader title="문자 전송" />
+
+      {/* Main Grid Layout (1:1 Ratio) */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 h-[calc(100vh-180px)]">
+        
+        {/* --- Left Column: Message Input (Phone Style) --- */}
+        <div className="flex flex-col items-center justify-center bg-slate-900/50 rounded-2xl border border-slate-700 p-8">
+           <div className="relative w-full max-w-[380px] h-[700px] bg-slate-800 rounded-[3rem] border-8 border-slate-700 shadow-2xl overflow-hidden flex flex-col">
+              {/* Phone Speaker */}
+              <div className="absolute top-0 left-1/2 transform -translate-x-1/2 w-32 h-6 bg-slate-700 rounded-b-xl z-10"></div>
+              
+              {/* Phone Header */}
+              <div className="bg-slate-900 text-white p-4 pt-10 text-center border-b border-slate-700 font-bold">
+                 SMS 전송
+              </div>
+
+              {/* Phone Body */}
+              <div className="flex-1 p-5 flex flex-col gap-4 bg-slate-50 overflow-y-auto">
+                 {/* Subject */}
+                 <div className="flex flex-col gap-1">
+                    <label className="text-xs font-bold text-slate-600 ml-1">제목</label>
+                    <input 
+                       type="text" 
+                       value={subject}
+                       onChange={(e) => setSubject(e.target.value)}
+                       className="w-full p-3 border border-slate-300 rounded-lg focus:outline-none focus:border-blue-500 bg-white text-slate-800 shadow-sm"
+                       placeholder="제목을 입력하세요"
+                    />
+                 </div>
+
+                 {/* Content */}
+                 <div className="flex flex-col gap-1 flex-1">
+                    <div className="flex justify-between items-end ml-1 mb-1">
+                       <label className="text-xs font-bold text-slate-600">내용</label>
+                       <span className={`text-[10px] ${currentBytes > maxBytes ? 'text-red-500 font-bold' : 'text-slate-400'}`}>
+                          ({currentBytes} / {maxBytes} byte) {currentBytes > 80 ? 'LMS' : 'SMS'}
+                       </span>
+                    </div>
+                    <textarea 
+                       value={content}
+                       onChange={(e) => setContent(e.target.value)}
+                       className="w-full h-full min-h-[250px] p-3 border border-slate-300 rounded-lg resize-none focus:outline-none focus:border-blue-500 bg-white text-slate-800 shadow-sm"
+                       placeholder="전송할 내용을 입력하세요."
+                    ></textarea>
+                 </div>
+
+                 {/* Sender Number */}
+                 <div className="flex flex-col gap-1 mt-auto">
+                    <label className="text-xs font-bold text-slate-600 ml-1">발신번호</label>
+                    <input 
+                       type="text" 
+                       value={senderPhone}
+                       onChange={(e) => setSenderPhone(e.target.value)}
+                       className="w-full p-3 border border-slate-300 rounded-lg focus:outline-none focus:border-blue-500 bg-white text-slate-800 font-medium text-center shadow-sm"
+                    />
+                 </div>
+              </div>
+           </div>
+        </div>
+
+        {/* --- Right Column: Receiver Management --- */}
+        <div className="flex flex-col h-full overflow-hidden">
+           
+           {/* Top Controls */}
+           <div className="flex flex-col gap-4 bg-slate-800 p-5 rounded-lg border border-slate-700 shadow-sm mb-4">
+              <div className="flex justify-between items-center border-b border-slate-700 pb-3">
+                 <h3 className="font-bold text-blue-400 flex items-center gap-2">
+                    <UserPlus size={18} /> 수신자 정보 입력
+                 </h3>
+                 <div className="flex gap-2">
+                    <Button variant="primary" onClick={handleSendSms} className="h-8 text-xs bg-blue-600 hover:bg-blue-500" icon={<Send size={12}/>}>문자전송하기</Button>
+                    <Button variant="secondary" onClick={() => setView('history')} className="h-8 text-xs" icon={<List size={12}/>}>전송 목록</Button>
+                 </div>
+              </div>
+              
+              <div className="flex flex-col gap-4">
+                 <div className="flex flex-col gap-2">
+                    <label className="text-sm font-semibold text-slate-400">사용자 선택</label>
+                    <Button onClick={openUserModal} variant="secondary" className="justify-start text-slate-300 border-slate-600 hover:bg-slate-700" icon={<UserPlus size={16}/>}>
+                       사용자 목록에서 선택 추가
+                    </Button>
+                 </div>
+
+                 <div className="flex flex-col md:flex-row gap-3 items-end">
+                    <div className="flex-1 w-full">
+                       <InputGroup label="수신자명" value={manualName} onChange={(e) => setManualName(e.target.value)} placeholder="이름" />
+                    </div>
+                    <div className="flex-[2] w-full">
+                       <InputGroup label="휴대폰번호" value={manualPhone} onChange={handleManualPhoneChange} placeholder="숫자만 입력" />
+                    </div>
+                    <Button onClick={handleAddManual} className="h-[38px] w-full md:w-auto bg-slate-600 hover:bg-slate-500">추가</Button>
+                 </div>
+              </div>
+           </div>
+
+           {/* Receiver List Table */}
+           <div className="flex-1 bg-slate-800 rounded-lg border border-slate-700 shadow-sm overflow-hidden flex flex-col">
+              <div className="p-3 bg-slate-900 border-b border-slate-700 flex justify-between items-center">
+                 <span className="text-sm font-bold text-slate-300">
+                    전체 <span className="text-blue-400">{receivers.length}</span> 명
+                 </span>
+                 <div className="flex items-center gap-2">
+                     <label className="flex items-center gap-2 text-sm text-slate-400 cursor-pointer">
+                        <input type="checkbox" onChange={toggleAllReceivers} checked={receivers.length > 0 && checkedReceiverIds.size === receivers.length} className="w-4 h-4 accent-blue-500" />
+                        전체선택
+                     </label>
+                 </div>
+              </div>
+              
+              <div className="flex-1 overflow-auto custom-scrollbar relative">
+                 <table className="min-w-full divide-y divide-slate-700">
+                    <thead className="sticky top-0 z-10">
+                       <tr>
+                          {receiverColumns.map((col, idx) => (
+                             <th key={idx} className={`${UI_STYLES.th} whitespace-nowrap`} style={{ width: col.width }}>{col.header}</th>
+                          ))}
+                       </tr>
+                    </thead>
+                    <tbody className="bg-slate-800 divide-y divide-slate-700">
+                       {receivers.length > 0 ? (
+                          receivers.map((row, idx) => (
+                             <tr key={row.id} className="hover:bg-slate-700/30 transition-colors">
+                                <td className={UI_STYLES.td}>
+                                   <input 
+                                      type="checkbox" 
+                                      checked={checkedReceiverIds.has(row.id)}
+                                      onChange={() => toggleReceiverCheck(row.id)}
+                                      className="w-4 h-4 accent-blue-500"
+                                   />
+                                </td>
+                                <td className={UI_STYLES.td}>{idx + 1}</td>
+                                <td className={UI_STYLES.td}>{row.userId || '-'}</td>
+                                <td className={UI_STYLES.td}>{row.name}</td>
+                                <td className={UI_STYLES.td}>{row.department || '-'}</td>
+                                <td className={UI_STYLES.td}>{row.phone}</td>
+                                <td className={UI_STYLES.td}>
+                                   <span className={`px-2 py-0.5 rounded text-xs ${row.smsReceive === '수신' ? 'bg-green-900/50 text-green-300' : 'bg-slate-700 text-slate-400'}`}>
+                                      {row.smsReceive || '-'}
+                                   </span>
+                                </td>
+                             </tr>
+                          ))
+                       ) : (
+                          <tr>
+                             <td colSpan={7} className="px-6 py-20 text-center text-slate-500">
+                                <Smartphone size={40} className="mx-auto mb-2 opacity-20" />
+                                수신자를 추가해주세요.
+                             </td>
+                          </tr>
+                       )}
+                    </tbody>
+                 </table>
+              </div>
+              
+              {/* Bottom Actions */}
+              <div className="p-4 border-t border-slate-700 bg-slate-800 flex justify-between items-center">
+                 <Button variant="danger" onClick={handleDeleteChecked} icon={<Trash2 size={16}/>} disabled={checkedReceiverIds.size === 0}>
+                    선택 삭제
+                 </Button>
+                 <Button variant="primary" onClick={handleSendSms} className="bg-blue-600 hover:bg-blue-500 px-8" icon={<Send size={16}/>}>
+                    문자전송하기
+                 </Button>
+              </div>
+           </div>
+        </div>
+      </div>
+
+      {/* --- User Selection Modal --- */}
+      <Modal isOpen={isUserModalOpen} onClose={() => setIsUserModalOpen(false)} title="사용자 목록 (수신자 추가)" width="max-w-2xl">
+         <SearchFilterBar onSearch={fetchUsers}>
+            <InputGroup 
+               label="성명" 
+               value={modalSearchName}
+               onChange={(e) => setModalSearchName(e.target.value)}
+            />
+            <InputGroup 
+               label="소속(업체)" 
+               value={modalSearchDept}
+               onChange={(e) => setModalSearchDept(e.target.value)}
+            />
+         </SearchFilterBar>
+         
+         <div className="max-h-[400px] overflow-auto custom-scrollbar border rounded border-slate-700 mb-4">
+             <DataTable columns={modalColumns} data={currentModalUsers} />
+         </div>
+
+         <Pagination 
+            totalItems={userList.length} 
+            itemsPerPage={Modal_ITEMS_PER_PAGE_CONST} 
+            currentPage={modalPage} 
+            onPageChange={setModalPage}
+         />
+
+         <div className="flex justify-center gap-3 mt-6 border-t border-slate-700 pt-4">
+            <Button variant="primary" onClick={handleAddSelectedUsers} className="w-32" disabled={modalSelectedIds.size === 0}>
+               선택 추가 ({modalSelectedIds.size})
+            </Button>
+            <Button variant="secondary" onClick={() => setIsUserModalOpen(false)} className="w-32">취소</Button>
+         </div>
+      </Modal>
+    </>
+  );
+};
+
+const Modal_ITEMS_PER_PAGE_CONST = 5;

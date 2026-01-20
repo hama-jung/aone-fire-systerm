@@ -608,7 +608,7 @@ export const StoreManagement: React.FC = () => {
         {excelData.length > 0 && (
           <div className="mt-8">
              <h3 className="text-lg font-bold text-slate-200 mb-2">등록 미리보기 ({excelData.length}건)</h3>
-             <DataTable 
+             <DataTable<Store> 
                columns={[
                   {header:'상가명', accessor:'name'},
                   {header:'대표자', accessor:'managerName'},

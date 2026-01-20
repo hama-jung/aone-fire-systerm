@@ -97,7 +97,7 @@ export const Login: React.FC = () => {
         </form>
         
         <p className="mt-8 text-center text-xs text-slate-500">
-          Copyright 2024. A-ONE FIRE Co.,Ltd. all rights reserved.
+          Copyright 2026. (주)에이원 소방. all rights reserved.
         </p>
       </div>
     </div>

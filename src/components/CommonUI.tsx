@@ -339,7 +339,7 @@ export const AddressInput: React.FC<AddressInputProps> = ({
 // --- Table Component ---
 export interface Column<T> {
   header: string;
-  accessor: keyof T | ((item: T) => React.ReactNode);
+  accessor: keyof T | ((item: T, index: number) => React.ReactNode);
   width?: string;
 }
 
@@ -374,7 +374,7 @@ export const DataTable = <T extends { id: number | string }>({ columns, data, on
                   {columns.map((col, colIndex) => (
                     <td key={colIndex} className={UI_STYLES.td}>
                       {typeof col.accessor === 'function' 
-                        ? col.accessor(row) 
+                        ? col.accessor(row, rowIndex) 
                         : (row[col.accessor] as React.ReactNode)}
                     </td>
                   ))}

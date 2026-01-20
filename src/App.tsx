@@ -8,6 +8,7 @@ import { MarketManagement } from './pages/MarketManagement';
 import { StoreManagement } from './pages/StoreManagement';
 import { RoleManagement } from './pages/RoleManagement';
 import { DistributorManagement } from './pages/DistributorManagement';
+import { SmsTransmission } from './pages/SmsTransmission';
 
 // Placeholder components for routes not fully implemented
 const PlaceholderPage: React.FC<{ title: string }> = ({ title }) => (
@@ -30,12 +31,14 @@ const App: React.FC = () => {
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/users" element={<UserManagement />} />
               <Route path="/markets" element={<MarketManagement />} />
+              
+              {/* Actual Components linked to routes */}
               <Route path="/stores" element={<StoreManagement />} />
               <Route path="/roles" element={<RoleManagement />} />
               <Route path="/distributors" element={<DistributorManagement />} />
+              <Route path="/sms" element={<SmsTransmission />} />
               
               {/* Placeholders for other menu items */}
-              <Route path="/sms" element={<PlaceholderPage title="문자 전송" />} />
               <Route path="/access-logs" element={<PlaceholderPage title="접속 로그" />} />
               <Route path="/receivers" element={<PlaceholderPage title="R형 수신기 관리" />} />
               <Route path="/repeaters" element={<PlaceholderPage title="중계기 관리" />} />
