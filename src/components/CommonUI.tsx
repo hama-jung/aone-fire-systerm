@@ -124,7 +124,8 @@ export const StatusRadioGroup: React.FC<{
   name?: string; 
 }> = ({ label = "사용여부", value, onChange, name = "status" }) => (
   <div className={`flex flex-col gap-1.5 w-full`}>
-    <label className={UI_STYLES.label}>{label}</label>
+    {/* Only render label if it's not empty string to prevent double spacing */}
+    {label && <label className={UI_STYLES.label}>{label}</label>}
     <div className={`${UI_STYLES.input} flex gap-4 text-slate-300 items-center`}>
       <label className="flex items-center gap-2 cursor-pointer hover:text-white transition-colors">
         <input 
@@ -187,6 +188,9 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, icon, chil
     </div>
   );
 };
+
+// ... (Rest of the file remains unchanged, including Business Modals, AddressSearchModal, etc.)
+// ... (MarketSearchModal, ReceiverSearchModal, AddressSearchModal, AddressInput, DataTable, Pagination, ActionBar, FormSection, FormRow)
 
 // --- Business Modals (Market, Receiver) ---
 

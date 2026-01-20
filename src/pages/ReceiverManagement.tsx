@@ -311,7 +311,7 @@ export const ReceiverManagement: React.FC = () => {
   if (view === 'form') {
     return (
       <>
-        <PageHeader title={selectedReceiver ? "R형 수신기 수정" : "R형 수신기 등록"} />
+        <PageHeader title="R형 수신기 관리" />
         <form onSubmit={handleSave}>
           <FormSection title={selectedReceiver ? "R형 수신기 수정" : "R형 수신기 등록"}>
             {/* MAC ADDRESS (Full Width) */}

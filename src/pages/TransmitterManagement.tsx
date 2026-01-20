@@ -166,7 +166,7 @@ export const TransmitterManagement: React.FC = () => {
   if (view === 'form') {
     return (
       <>
-        <PageHeader title={selectedTransmitter ? "발신기 수정" : "발신기 등록"} />
+        <PageHeader title="발신기 관리" />
         <form onSubmit={handleSave}>
           <FormSection title={selectedTransmitter ? "발신기 수정" : "발신기 등록"}>
             {/* R형 수신기 MAC (Search) */}

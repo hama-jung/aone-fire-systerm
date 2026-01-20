@@ -349,7 +349,7 @@ export const StoreManagement: React.FC = () => {
   if (view === 'form') {
     return (
       <>
-        <PageHeader title={selectedStore ? "상가 수정" : "상가 등록"} />
+        <PageHeader title="상가 관리" />
         <form onSubmit={handleSave}>
           <FormSection title={selectedStore ? "상가 수정" : "상가 등록"}>
             {/* 1. 소속 시장 (Required) - 한 줄 아이콘 버튼 스타일 적용 */}

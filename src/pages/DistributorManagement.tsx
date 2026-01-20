@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  PageHeader, SearchFilterBar, InputGroup, AddressInput,
+  PageHeader, SearchFilterBar, InputGroup, SelectGroup, AddressInput,
   Button, DataTable, Pagination, ActionBar, FormSection, FormRow, Column, UI_STYLES
 } from '../components/CommonUI';
 import { Distributor } from '../types';
@@ -184,7 +184,7 @@ export const DistributorManagement: React.FC = () => {
   if (view === 'form') {
     return (
       <>
-        <PageHeader title={selectedDistributor ? "총판 수정" : "총판 등록"} />
+        <PageHeader title="총판 관리" />
         <form onSubmit={handleSave}>
           <FormSection title={selectedDistributor ? "총판 수정" : "총판 등록"}>
               {/* 총판명 (Full Width) - 필수 */}

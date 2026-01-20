@@ -303,7 +303,7 @@ export const MarketManagement: React.FC = () => {
   if (view === 'form') {
     return (
       <>
-        <PageHeader title={selectedMarket ? "시장 수정" : "시장 등록"} />
+        <PageHeader title="시장 관리" />
         <form onSubmit={handleSave}>
           <FormSection title={selectedMarket ? "시장 수정" : "시장 등록"}>
               {/* Row 1: 총판, 시장명 */}

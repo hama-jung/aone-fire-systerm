@@ -166,7 +166,7 @@ export const AlarmManagement: React.FC = () => {
   if (view === 'form') {
     return (
       <>
-        <PageHeader title={selectedAlarm ? "경종 수정" : "경종 등록"} />
+        <PageHeader title="경종 관리" />
         <form onSubmit={handleSave}>
           <FormSection title={selectedAlarm ? "경종 수정" : "경종 등록"}>
             {/* R형 수신기 MAC (Search) */}

@@ -327,9 +327,9 @@ export const UserManagement: React.FC = () => {
   if (view === 'form') {
     return (
       <>
-        <PageHeader title={selectedUser ? "사용자 수정" : "사용자 신규등록"} />
+        <PageHeader title="사용자 관리" />
         <form onSubmit={handleSave} key={selectedUser ? selectedUser.id : 'new-entry'} autoComplete="off">
-          <FormSection title="기본 정보">
+          <FormSection title={selectedUser ? "사용자 수정" : "사용자 신규등록"}>
             {/* 1행: 사용자 ID (아이디 만들기 모달 트리거) */}
             <FormRow label="사용자 ID" required>
               <div className="flex gap-2 w-full">

@@ -235,7 +235,7 @@ export const WorkLogManagement: React.FC = () => {
   if (view === 'form') {
     return (
       <>
-        <PageHeader title={selectedLog ? "작업일지 수정" : "작업일지 등록"} />
+        <PageHeader title="작업일지" />
         <form onSubmit={handleSave}>
           <div className="bg-slate-800 p-6 rounded-lg border border-slate-700 shadow-sm mb-5 w-full">
             <h3 className="text-lg font-bold text-slate-200 mb-5 border-b border-slate-700 pb-2 flex items-center gap-2">
