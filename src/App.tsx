@@ -10,6 +10,7 @@ import { RoleManagement } from './pages/RoleManagement';
 import { DistributorManagement } from './pages/DistributorManagement';
 import { SmsTransmission } from './pages/SmsTransmission';
 import { WorkLogManagement } from './pages/WorkLogManagement';
+import { ReceiverManagement } from './pages/ReceiverManagement';
 
 // Placeholder components for routes not fully implemented
 const PlaceholderPage: React.FC<{ title: string }> = ({ title }) => (
@@ -39,9 +40,9 @@ const App: React.FC = () => {
               <Route path="/distributors" element={<DistributorManagement />} />
               <Route path="/sms" element={<SmsTransmission />} />
               <Route path="/work-logs" element={<WorkLogManagement />} />
+              <Route path="/receivers" element={<ReceiverManagement />} />
               
               {/* Placeholders for other menu items */}
-              <Route path="/receivers" element={<PlaceholderPage title="R형 수신기 관리" />} />
               <Route path="/repeaters" element={<PlaceholderPage title="중계기 관리" />} />
               <Route path="/detectors" element={<PlaceholderPage title="화재감지기 관리" />} />
               <Route path="/fire-history" element={<PlaceholderPage title="화재 이력 관리" />} />

@@ -90,6 +90,19 @@ export interface Store {
   mode?: '복합' | '열' | '연기'; // 감지 모드
 }
 
+export interface Receiver {
+  id: number;
+  marketId: number;
+  marketName?: string; // Join
+  macAddress: string;
+  ip?: string;
+  dns?: string;
+  emergencyPhone?: string;
+  transmissionInterval?: string; // '01시간' ~ '23시간'
+  image?: string;
+  status: '사용' | '미사용';
+}
+
 export interface Distributor {
   id: number;
   name: string;           // 총판명
