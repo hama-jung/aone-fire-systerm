@@ -1,5 +1,5 @@
 import { supabase } from '../lib/supabaseClient';
-import { User, RoleItem, Market, Distributor, Store, WorkLog, Receiver } from '../types';
+import { User, RoleItem, Market, Distributor, Store, WorkLog, Receiver, MenuItemDB } from '../types';
 
 /**
  * [Supabase 연동 완료]
@@ -58,6 +58,88 @@ export const AuthAPI = {
 
     if (updateError) handleError(updateError);
     return { success: true };
+  }
+};
+
+export const MenuAPI = {
+  // 전체 메뉴 목록 조회 (계층 구조 없이 Flat List)
+  getAll: async () => {
+    const { data, error } = await supabase
+      .from('menus')
+      .select('*')
+      .order('sortOrder', { ascending: true });
+    
+    if (error) handleError(error);
+    return data as MenuItemDB[];
+  },
+
+  // 메뉴 노출 상태 토글 (PC/Mobile) - 기존 유지
+  toggleVisibility: async (id: number, field: 'isVisiblePc' | 'isVisibleMobile', value: boolean) => {
+    const { error } = await supabase
+      .from('menus')
+      .update({ [field]: value })
+      .eq('id', id);
+    
+    if (error) handleError(error);
+    return true;
+  },
+
+  // 메뉴 저장 (신규/수정)
+  save: async (menu: MenuItemDB) => {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { id, children, ...payload } = menu; // children은 DB 컬럼이 아니므로 제외
+    
+    // parentId가 0이거나 falsy하면 null로 처리 (최상위 메뉴)
+    const dbPayload = {
+        ...payload,
+        parentId: payload.parentId ? payload.parentId : null
+    };
+
+    if (menu.id === 0) {
+      // Create
+      const { data, error } = await supabase.from('menus').insert(dbPayload).select().single();
+      if (error) handleError(error);
+      return data;
+    } else {
+      // Update
+      const { data, error } = await supabase.from('menus').update(dbPayload).eq('id', menu.id).select().single();
+      if (error) handleError(error);
+      return data;
+    }
+  },
+
+  // 메뉴 삭제
+  delete: async (id: number) => {
+    const { error } = await supabase.from('menus').delete().eq('id', id);
+    if (error) {
+       // 자식 메뉴가 있는 경우 FK 제약조건 에러 발생 가능
+       if (error.message.includes('foreign key constraint')) {
+         throw new Error('하위 메뉴가 존재하는 메뉴는 삭제할 수 없습니다. 하위 메뉴를 먼저 삭제하거나 이동해주세요.');
+       }
+       handleError(error);
+    }
+    return true;
+  },
+
+  // 트리 구조로 변환된 메뉴 조회 (레이아웃용)
+  getTree: async () => {
+    const { data, error } = await supabase
+      .from('menus')
+      .select('*')
+      .order('sortOrder', { ascending: true });
+
+    if (error) {
+        console.warn("Menu fetch failed (might differ from schema):", error.message);
+        return [];
+    }
+
+    const menus = data as MenuItemDB[];
+    const rootMenus = menus.filter(m => !m.parentId);
+    
+    return rootMenus.map(root => ({
+      ...root,
+      children: menus.filter(child => child.parentId === root.id)
+    }));
   }
 };
 

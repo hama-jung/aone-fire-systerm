@@ -138,9 +138,24 @@ export interface FireEvent {
   location: string;
 }
 
+// UI 렌더링용 메뉴 아이템
 export interface MenuItem {
+  id?: number;
   label: string;
   path?: string;
   icon?: React.ReactNode;
   children?: MenuItem[];
+}
+
+// DB 저장용 메뉴 아이템
+export interface MenuItemDB {
+  id: number;
+  parentId?: number;
+  label: string;
+  path?: string;
+  icon?: string; // String name of the icon
+  sortOrder: number;
+  isVisiblePc: boolean;
+  isVisibleMobile: boolean;
+  children?: MenuItemDB[]; // For tree structure
 }

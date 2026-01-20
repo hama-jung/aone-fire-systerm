@@ -1,62 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { 
-  Home, Users, Cpu, Activity, Menu, 
-  ChevronDown, ChevronRight, LogOut, Settings, Bell, Key, HelpCircle, User
+  ChevronDown, ChevronRight, LogOut, Menu, Bell, Key, HelpCircle, User
 } from 'lucide-react';
-import { MenuItem } from '../types';
+import { MenuItem, MenuItemDB } from '../types';
 import { Modal, InputGroup, Button } from './CommonUI';
-import { AuthAPI } from '../services/api';
+import { AuthAPI, MenuAPI } from '../services/api';
+import { getIcon } from '../utils/iconMapper';
 
-// 비밀번호 정규식 (영문, 숫자, 특수문자 포함 6~12자) - UserManagement와 동일
+// 비밀번호 정규식
 const PW_REGEX = /^(?=.*[A-Za-z])(?=.*\d)(?=.*[!@#$%^&*(),.?":{}|<>]).{6,12}$/;
 
-const menuItems: MenuItem[] = [
-  { 
-    label: '대시보드', 
-    path: '/dashboard', 
-    icon: <Home size={16} /> 
-  },
-  { 
-    label: '시스템 관리', 
-    icon: <Settings size={16} />,
-    children: [
-      { label: '사용자 관리', path: '/users' },
-      { label: '총판 관리', path: '/distributors' },
-      { label: '시장 관리', path: '/markets' },
-      { label: '상가 관리', path: '/stores' },
-      { label: '문자 전송', path: '/sms' },
-      { label: '작업일지', path: '/work-logs' },
-      { label: '롤 관리', path: '/roles' },
-    ]
-  },
-  { 
-    label: '기기 관리', 
-    icon: <Cpu size={16} />,
-    children: [
-      { label: 'R형 수신기', path: '/receivers' },
-      { label: '중계기 관리', path: '/repeaters' },
-      { label: '화재감지기', path: '/detectors' },
-    ]
-  },
-  { 
-    label: '데이터 관리', 
-    icon: <Activity size={16} />,
-    children: [
-      { label: '화재 이력 관리', path: '/fire-history' },
-      { label: '기기 상태 관리', path: '/device-status' },
-    ]
-  },
-];
-
-const SidebarItem: React.FC<{ item: MenuItem; level?: number }> = ({ item, level = 0 }) => {
+const SidebarItem: React.FC<{ item: MenuItemDB; level?: number }> = ({ item, level = 0 }) => {
   const [isOpen, setIsOpen] = useState(true);
   const location = useLocation();
   const hasChildren = item.children && item.children.length > 0;
   
   const isActive = item.path ? location.pathname === item.path : false;
-  // const isChildActive = item.children?.some(child => child.path === location.pathname);
-
+  
   // 폰트 크기: text-[14px]
   const baseClasses = "w-full flex items-center gap-3 px-5 py-2.5 text-[14px] font-medium transition-all duration-200";
 
@@ -68,7 +29,7 @@ const SidebarItem: React.FC<{ item: MenuItem; level?: number }> = ({ item, level
           className={`${baseClasses} justify-between text-gray-300 hover:text-white hover:bg-[#3e4b61]`}
         >
           <div className="flex items-center gap-3">
-            {item.icon}
+            {getIcon(item.icon)}
             <span>{item.label}</span>
           </div>
           {isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
@@ -76,7 +37,7 @@ const SidebarItem: React.FC<{ item: MenuItem; level?: number }> = ({ item, level
         {isOpen && (
           <div className="bg-[#232d3f] py-1">
             {item.children?.map((child, idx) => (
-              <SidebarItem key={idx} item={child} level={level + 1} />
+              <SidebarItem key={child.id} item={child} level={level + 1} />
             ))}
           </div>
         )}
@@ -95,7 +56,7 @@ const SidebarItem: React.FC<{ item: MenuItem; level?: number }> = ({ item, level
           : 'text-gray-400 hover:text-white hover:bg-[#3e4b61]'}
       `}
     >
-      {!level && item.icon}
+      {!level && getIcon(item.icon)}
       <span>{item.label}</span>
     </NavLink>
   );
@@ -104,6 +65,7 @@ const SidebarItem: React.FC<{ item: MenuItem; level?: number }> = ({ item, level
 export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const navigate = useNavigate();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [menuItems, setMenuItems] = useState<MenuItemDB[]>([]);
   
   // 비밀번호 변경 모달 상태
   const [isPwModalOpen, setIsPwModalOpen] = useState(false);
@@ -111,8 +73,19 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
 
   const [currentUser, setCurrentUser] = useState<{name: string, userId: string} | null>(null);
 
+  // 화면 크기에 따른 모바일 여부 상태
+  const [isMobileView, setIsMobileView] = useState(window.innerWidth < 1024);
+
   useEffect(() => {
-    // 로컬 스토리지에서 사용자 정보 로드
+    const handleResize = () => {
+      setIsMobileView(window.innerWidth < 1024);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  useEffect(() => {
+    // 1. 사용자 정보 로드
     const userStr = localStorage.getItem('currentUser');
     if (userStr) {
       try {
@@ -122,6 +95,17 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
         console.error("Failed to parse user info");
       }
     }
+
+    // 2. 메뉴 데이터 로드
+    const loadMenus = async () => {
+        try {
+            const tree = await MenuAPI.getTree();
+            setMenuItems(tree);
+        } catch (e) {
+            console.error("Failed to load menus");
+        }
+    };
+    loadMenus();
   }, []);
 
   const handleLogout = () => {
@@ -157,11 +141,29 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
       await AuthAPI.changePassword(currentUser.userId, pwForm.current, pwForm.new);
       alert('비밀번호가 성공적으로 변경되었습니다.\n새로운 비밀번호로 다시 로그인해주세요.');
       setIsPwModalOpen(false);
-      handleLogout(); // 변경 후 재로그인 유도
+      handleLogout();
     } catch (e: any) {
       alert(e.message || '비밀번호 변경에 실패했습니다.');
     }
   };
+
+  // --- Menu Filtering Logic ---
+  // 현재 뷰포트(isMobileView)에 따라 보여줄 메뉴 필터링
+  const getVisibleMenus = (menus: MenuItemDB[]): MenuItemDB[] => {
+    return menus
+      .filter(item => {
+        if (isMobileView) return item.isVisibleMobile;
+        return item.isVisiblePc;
+      })
+      .map(item => ({
+        ...item,
+        children: item.children ? getVisibleMenus(item.children) : undefined
+      }))
+      // 자식 메뉴가 모두 숨겨져서 비어있게 된 부모 메뉴 처리 여부는 기획에 따라 다름.
+      // 여기서는 단순히 PC/Mobile 설정값만 따름.
+  };
+
+  const visibleMenuItems = getVisibleMenus(menuItems);
 
   return (
     <div className="flex h-screen bg-[#0f172a] overflow-hidden text-slate-200">
@@ -175,11 +177,9 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
       >
         {/* Brand Header */}
         <div className="h-20 flex flex-col justify-center px-5 bg-[#263245] shadow-sm border-b border-[#3e4b61]">
-          {/* Logo Font Size: 20px */}
           <div className="text-[20px] font-black text-white tracking-wide leading-none mb-1">
             A-ONE 에이원
           </div>
-          {/* Subtext Font Size: 12px */}
           <div className="text-[12px] font-bold text-red-500 tracking-tight">
             화재감지 모니터링
           </div>
@@ -188,8 +188,8 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
         {/* Menu Area */}
         <div className="overflow-y-auto h-[calc(100vh-5rem)] custom-scrollbar py-3">
           <nav className="space-y-0.5">
-            {menuItems.map((item, idx) => (
-              <SidebarItem key={idx} item={item} />
+            {visibleMenuItems.map((item) => (
+              <SidebarItem key={item.id} item={item} />
             ))}
           </nav>
         </div>
@@ -208,9 +208,10 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
             </button>
             
             {/* Left Side: Fire Status Alert */}
-            <div className="hidden md:flex items-center gap-2 text-red-500 font-bold px-2 py-1 rounded bg-red-500/10 border border-red-500/20">
+            <div className="flex items-center gap-2 text-red-500 font-bold px-2 py-1 rounded bg-red-500/10 border border-red-500/20">
                <Bell size={16} className="animate-pulse" />
-               <span className="text-[13px]">현재 전국 화재 상황 (0건)</span>
+               <span className="text-[13px] hidden sm:inline">현재 전국 화재 상황 (0건)</span>
+               <span className="text-[13px] sm:hidden">화재 (0)</span>
             </div>
           </div>
 
@@ -221,7 +222,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
                 <div className="p-1 bg-gray-600 rounded-full">
                   <User size={12} className="text-white" />
                 </div>
-                <span className="text-[13px] text-gray-200">
+                <span className="text-[13px] text-gray-200 hidden sm:inline">
                   {currentUser ? (
                     <>
                       <span className="font-bold text-white">{currentUser.name}</span> ({currentUser.userId})
@@ -232,31 +233,33 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
                 </span>
              </div>
 
-             {/* Action Buttons */}
-             <button 
-               onClick={handleOpenPwModal}
-               className="flex items-center gap-1.5 px-3 py-1.5 rounded border border-gray-600 hover:bg-[#3e4b61] text-gray-300 hover:text-white transition-colors text-[12px]"
-             >
-               <Key size={12} />
-               <span>비밀번호 변경</span>
-             </button>
+             {/* Action Buttons (PC Only) */}
+             <div className="hidden sm:flex items-center gap-2">
+               <button 
+                 onClick={handleOpenPwModal}
+                 className="flex items-center gap-1.5 px-3 py-1.5 rounded border border-gray-600 hover:bg-[#3e4b61] text-gray-300 hover:text-white transition-colors text-[12px]"
+               >
+                 <Key size={12} />
+                 <span>비밀번호 변경</span>
+               </button>
 
-             <button className="p-1.5 rounded-full hover:bg-[#3e4b61] text-gray-400 hover:text-white transition-colors">
-               <HelpCircle size={18} />
-             </button>
+               <button className="p-1.5 rounded-full hover:bg-[#3e4b61] text-gray-400 hover:text-white transition-colors">
+                 <HelpCircle size={18} />
+               </button>
+             </div>
 
              <button 
                className="flex items-center gap-1.5 px-3 py-1.5 rounded border border-gray-600 hover:bg-[#3e4b61] text-gray-300 hover:text-white transition-colors text-[12px]"
                onClick={handleLogout}
              >
                <LogOut size={12} />
-               <span>로그아웃</span>
+               <span className="hidden sm:inline">로그아웃</span>
              </button>
           </div>
         </header>
 
-        {/* Content Body (Dark bg) - Padding adjustment to 60px */}
-        <main className="flex-1 overflow-auto py-5 px-[60px] bg-[#0f172a] custom-scrollbar">
+        {/* Content Body (Dark bg) - Responsive Padding */}
+        <main className="flex-1 overflow-auto py-5 px-4 md:px-[60px] bg-[#0f172a] custom-scrollbar">
           <div className="w-full h-full flex flex-col max-w-[1920px] mx-auto">
             {children}
           </div>
@@ -271,7 +274,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
         />
       )}
 
-      {/* Password Change Modal */}
+      {/* Password Change Modal (Reused from previous) */}
       {isPwModalOpen && (
         <Modal 
           isOpen={isPwModalOpen} 

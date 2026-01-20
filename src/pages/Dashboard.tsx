@@ -37,9 +37,10 @@ export const Dashboard: React.FC = () => {
     <div className="flex flex-col h-full text-slate-200">
       <PageHeader title="대시보드" />
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 h-[calc(100vh-200px)]">
+      {/* Grid Layout: 1 col on mobile, 4 cols on desktop */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 h-auto lg:h-[calc(100vh-200px)]">
         {/* Left Sidebar: Event Logs */}
-        <div className="lg:col-span-1 flex flex-col gap-4 overflow-y-auto pr-2 custom-scrollbar">
+        <div className="lg:col-span-1 flex flex-col gap-4 overflow-y-auto pr-2 custom-scrollbar max-h-[500px] lg:max-h-full">
           
           {/* Stats Summary */}
           <div className="grid grid-cols-3 gap-2 mb-2">
@@ -102,7 +103,7 @@ export const Dashboard: React.FC = () => {
         </div>
 
         {/* Right Content: Map Visualization */}
-        <div className="lg:col-span-3 bg-slate-900 rounded-xl overflow-hidden relative shadow-inner border border-slate-700 flex flex-col">
+        <div className="md:col-span-2 lg:col-span-3 bg-slate-900 rounded-xl overflow-hidden relative shadow-inner border border-slate-700 flex flex-col min-h-[400px]">
           {/* Map Header Controls */}
           <div className="absolute top-4 right-4 z-10 flex gap-2">
              <button className="bg-slate-800 text-white px-3 py-1 rounded text-sm border border-slate-600 hover:bg-slate-700">
@@ -113,7 +114,7 @@ export const Dashboard: React.FC = () => {
              </button>
              {level > 1 && (
                <button onClick={() => setLevel(level - 1 as any)} className="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700 border border-transparent">
-                 &lt; Back to Level {level - 1}
+                 &lt; Back
                </button>
              )}
           </div>

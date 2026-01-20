@@ -34,8 +34,8 @@ export const Button: React.FC<ButtonProps> = ({ variant = 'primary', className =
 
 // --- Page Header ---
 export const PageHeader: React.FC<{ title: string }> = ({ title }) => (
-  <div className="mb-6 flex items-center justify-between border-b border-slate-700 pb-4">
-    <h1 className="text-xl font-bold text-slate-100">
+  <div className="mb-4 md:mb-6 flex items-center justify-between border-b border-slate-700 pb-3 md:pb-4">
+    <h1 className="text-lg md:text-xl font-bold text-slate-100">
       {title}
     </h1>
   </div>
@@ -52,9 +52,10 @@ interface SearchFilterBarProps {
 export const SearchFilterBar: React.FC<SearchFilterBarProps> = ({ 
   children, onSearch, onReset, isFiltered = false,
 }) => (
-  <div className="bg-slate-800 p-5 rounded-lg border border-slate-700 shadow-sm mb-5">
+  <div className="bg-slate-800 p-4 md:p-5 rounded-lg border border-slate-700 shadow-sm mb-5">
     <div className="flex flex-col xl:flex-row gap-4 xl:items-end">
-      <div className="flex-1 flex flex-col lg:flex-row gap-4 lg:items-end w-full lg:[&>*]:flex-1 lg:[&>*]:min-w-0">
+      {/* Mobile: Stack vertically, Tablet/Desktop: Horizontal */}
+      <div className="flex-1 flex flex-col md:flex-row gap-4 md:items-end w-full md:[&>*]:flex-1 md:[&>*]:min-w-0">
         {children}
       </div>
       <div className="flex-shrink-0 flex gap-2 pt-2 xl:pt-0 justify-end xl:justify-start">
@@ -110,13 +111,13 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, icon, chil
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-[2px] p-4 animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-[2px] p-4 animate-in fade-in duration-200 overflow-y-auto">
       <div 
-        className={`bg-slate-800 rounded-xl shadow-2xl border border-slate-700 w-full ${width} overflow-hidden transform transition-all scale-100 opacity-100`}
+        className={`bg-slate-800 rounded-xl shadow-2xl border border-slate-700 w-full ${width} my-auto transform transition-all scale-100 opacity-100`}
         role="dialog"
         aria-modal="true"
       >
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-700 bg-slate-800/50">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-700 bg-slate-800/50 rounded-t-xl sticky top-0 z-10">
           <div className="flex items-center gap-2.5 text-slate-100 font-bold text-lg">
             {icon}
             <span>{title}</span>
