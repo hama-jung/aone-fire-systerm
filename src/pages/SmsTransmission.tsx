@@ -1,10 +1,10 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
-  PageHeader, InputGroup, Button, DataTable, Pagination, FormSection, FormRow, Column, Modal, SearchFilterBar, UI_STYLES
+  PageHeader, InputGroup, Button, DataTable, Pagination, Column, Modal, SearchFilterBar, UI_STYLES
 } from '../components/CommonUI';
 import { User } from '../types';
 import { UserAPI } from '../services/api';
-import { Send, UserPlus, Trash2, List, Smartphone, X } from 'lucide-react';
+import { Send, UserPlus, Trash2, List, Smartphone, ArrowLeft } from 'lucide-react';
 
 const ITEMS_PER_PAGE = 10;
 
@@ -22,9 +22,7 @@ interface Receiver {
 // 전송 이력 인터페이스
 interface SmsHistoryItem {
   id: number;
-  date: string;
-  type: string;
-  category: string;
+  date: string; // ISO String
   count: number;
   success: number;
   fail: number;
@@ -180,9 +178,23 @@ export const SmsTransmission: React.FC = () => {
     }
 
     if (confirm('전송하시겠습니까?')) {
-      // API Call Mock Logic here...
+      // 1. 이력 저장 (Mocking DB insert)
+      const newItem: SmsHistoryItem = {
+        id: historyList.length + 1,
+        date: new Date().toISOString(),
+        count: receivers.length,
+        success: receivers.length, // 일단 전부 성공으로 가정
+        fail: 0,
+        refusal: 0,
+        subject: subject || '(제목없음)'
+      };
+
+      setHistoryList([newItem, ...historyList]);
+
+      // 2. 전송 완료 알림
       alert('전송 요청이 완료되었습니다.');
-      // 화면 새로고침 효과 (상태 초기화)
+
+      // 3. 화면 초기화 (새로고침 효과)
       setSubject('');
       setContent('');
       setReceivers([]);
@@ -192,24 +204,16 @@ export const SmsTransmission: React.FC = () => {
     }
   };
 
-  // --- Handlers: History Mock Data ---
-  useEffect(() => {
-    if (view === 'history') {
-      // Mock History Data
-      const mockHistory: SmsHistoryItem[] = Array.from({ length: 15 }).map((_, i) => ({
-        id: i + 1,
-        date: '2026-01-15 14:30',
-        type: 'SMS',
-        category: '일반',
-        count: Math.floor(Math.random() * 50) + 1,
-        success: Math.floor(Math.random() * 40) + 1,
-        fail: 0,
-        refusal: 0,
-        subject: `테스트 문자 발송 ${i + 1}`
-      }));
-      setHistoryList(mockHistory);
-    }
-  }, [view]);
+  // --- Handlers: Formatter ---
+  const formatDate = (dateStr: string) => {
+    const date = new Date(dateStr);
+    const yyyy = date.getFullYear();
+    const mm = String(date.getMonth() + 1).padStart(2, '0');
+    const dd = String(date.getDate()).padStart(2, '0');
+    const hh = String(date.getHours()).padStart(2, '0');
+    const min = String(date.getMinutes()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd} ${hh}:${min}`;
+  };
 
   // --- Columns Definitions ---
   const receiverColumns: Column<Receiver>[] = [
@@ -244,23 +248,21 @@ export const SmsTransmission: React.FC = () => {
           className="w-4 h-4 accent-blue-500"
         />
       ), 
-      width: '50px' 
+      width: '60px' 
     },
-    { header: '사용자ID', accessor: 'userId' },
-    { header: '성명', accessor: 'name' },
+    { header: '사용자ID', accessor: 'userId', width: '120px' },
+    { header: '성명', accessor: 'name', width: '100px' },
     { header: '소속', accessor: 'department' },
-    { header: '연락처', accessor: 'phone' },
+    { header: '연락처', accessor: 'phone', width: '140px' },
   ];
 
   const historyColumns: Column<SmsHistoryItem>[] = [
-    { header: '번호', accessor: 'id', width: '60px' },
-    { header: '전송일', accessor: 'date' },
-    { header: '전송 구분', accessor: 'type' },
-    { header: '문자 구분', accessor: 'category' },
-    { header: '전송 건수', accessor: 'count' },
+    { header: '번호', accessor: 'id', width: '70px' }, // width 조정
+    { header: '전송일', accessor: (item) => formatDate(item.date), width: '160px' },
+    { header: '전송 건수', accessor: 'count', width: '100px' },
     { header: '성공', accessor: 'success', width: '80px' },
     { header: '실패', accessor: 'fail', width: '80px' },
-    { header: '수신거부', accessor: 'refusal', width: '80px' },
+    { header: '수신거부', accessor: 'refusal', width: '90px' }, // 줄바꿈 방지 width 확보
     { header: '문자 제목/내용', accessor: 'subject' },
   ];
 
@@ -268,49 +270,54 @@ export const SmsTransmission: React.FC = () => {
 
   // 1. History View
   if (view === 'history') {
+    // 날짜 필터링
+    const filteredHistory = historyList.filter(item => {
+        const itemDate = new Date(item.date);
+        return itemDate.getFullYear() === currentDate.getFullYear() && 
+               itemDate.getMonth() === currentDate.getMonth();
+    });
+
     const historyLastIdx = historyPage * ITEMS_PER_PAGE;
     const historyFirstIdx = historyLastIdx - ITEMS_PER_PAGE;
-    const currentHistory = historyList.slice(historyFirstIdx, historyLastIdx);
+    const currentHistory = filteredHistory.slice(historyFirstIdx, historyLastIdx);
 
     return (
       <>
         <div className="flex items-center justify-between mb-6 border-b border-slate-700 pb-4">
           <div className="flex items-center gap-4">
-             <button onClick={() => setView('compose')} className="p-2 hover:bg-slate-800 rounded-full transition-colors">
-                <X size={24} className="text-slate-400" />
-             </button>
              <h1 className="text-xl font-bold text-slate-100 flex items-center gap-2">
-                <List size={20} />
                 전송 목록 (결과)
              </h1>
           </div>
-          <div className="flex items-center gap-4 bg-slate-800 px-4 py-2 rounded-lg border border-slate-700">
-             <button 
-                onClick={() => setCurrentDate(new Date(currentDate.setMonth(currentDate.getMonth() - 1)))}
-                className="text-slate-400 hover:text-white"
-             >
-                ◀
-             </button>
-             <span className="text-lg font-bold text-slate-200">
-                {currentDate.getFullYear()}년 {String(currentDate.getMonth() + 1).padStart(2, '0')}월
-             </span>
-             <button 
-                onClick={() => setCurrentDate(new Date(currentDate.setMonth(currentDate.getMonth() + 1)))}
-                className="text-slate-400 hover:text-white"
-             >
-                ▶
-             </button>
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-4 bg-slate-800 px-4 py-2 rounded-lg border border-slate-700">
+               <button 
+                  onClick={() => setCurrentDate(new Date(currentDate.setMonth(currentDate.getMonth() - 1)))}
+                  className="text-slate-400 hover:text-white"
+               >
+                  ◀
+               </button>
+               <span className="text-lg font-bold text-slate-200 min-w-[140px] text-center">
+                  {currentDate.getFullYear()}년 {String(currentDate.getMonth() + 1).padStart(2, '0')}월
+               </span>
+               <button 
+                  onClick={() => setCurrentDate(new Date(currentDate.setMonth(currentDate.getMonth() + 1)))}
+                  className="text-slate-400 hover:text-white"
+               >
+                  ▶
+               </button>
+            </div>
+            <Button onClick={() => setView('compose')} variant="secondary" className="h-[46px]" icon={<ArrowLeft size={16} />}>
+               이전으로
+            </Button>
           </div>
         </div>
 
-        <div className="bg-slate-800 rounded-lg p-4 mb-4 border border-slate-700 flex justify-end gap-6 text-sm">
-           <span className="text-slate-400">오늘 전송수: <strong className="text-white">0개 / 0건</strong></span>
-           <span className="text-slate-400">이달 누적 전송수: <strong className="text-white">0개 / 0건</strong></span>
-        </div>
+        {/* 통계 바 삭제됨 */}
 
         <DataTable columns={historyColumns} data={currentHistory} />
         <Pagination 
-           totalItems={historyList.length} 
+           totalItems={filteredHistory.length} 
            itemsPerPage={ITEMS_PER_PAGE} 
            currentPage={historyPage} 
            onPageChange={setHistoryPage} 
@@ -329,11 +336,11 @@ export const SmsTransmission: React.FC = () => {
     <>
       <PageHeader title="문자 전송" />
 
-      {/* Main Grid Layout (1:1 Ratio) */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 h-[calc(100vh-180px)]">
+      {/* Main Grid Layout (1:2 Ratio) */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 h-[calc(100vh-180px)]">
         
-        {/* --- Left Column: Message Input (Phone Style) --- */}
-        <div className="flex flex-col items-center justify-center bg-slate-900/50 rounded-2xl border border-slate-700 p-8">
+        {/* --- Left Column: Message Input (1 Share) --- */}
+        <div className="lg:col-span-1 flex flex-col items-center justify-center bg-slate-900/50 rounded-2xl border border-slate-700 p-8">
            <div className="relative w-full max-w-[380px] h-[700px] bg-slate-800 rounded-[3rem] border-8 border-slate-700 shadow-2xl overflow-hidden flex flex-col">
               {/* Phone Speaker */}
               <div className="absolute top-0 left-1/2 transform -translate-x-1/2 w-32 h-6 bg-slate-700 rounded-b-xl z-10"></div>
@@ -387,8 +394,8 @@ export const SmsTransmission: React.FC = () => {
            </div>
         </div>
 
-        {/* --- Right Column: Receiver Management --- */}
-        <div className="flex flex-col h-full overflow-hidden">
+        {/* --- Right Column: Receiver Management (2 Shares) --- */}
+        <div className="lg:col-span-2 flex flex-col h-full overflow-hidden">
            
            {/* Top Controls */}
            <div className="flex flex-col gap-4 bg-slate-800 p-5 rounded-lg border border-slate-700 shadow-sm mb-4">
@@ -495,7 +502,12 @@ export const SmsTransmission: React.FC = () => {
       </div>
 
       {/* --- User Selection Modal --- */}
-      <Modal isOpen={isUserModalOpen} onClose={() => setIsUserModalOpen(false)} title="사용자 목록 (수신자 추가)" width="max-w-2xl">
+      <Modal 
+        isOpen={isUserModalOpen} 
+        onClose={() => setIsUserModalOpen(false)} 
+        title="사용자 목록 (수신자 추가)" 
+        width="max-w-5xl" // Increased Width
+      >
          <SearchFilterBar onSearch={fetchUsers}>
             <InputGroup 
                label="성명" 
@@ -509,7 +521,7 @@ export const SmsTransmission: React.FC = () => {
             />
          </SearchFilterBar>
          
-         <div className="max-h-[400px] overflow-auto custom-scrollbar border rounded border-slate-700 mb-4">
+         <div className="max-h-[500px] overflow-auto custom-scrollbar border rounded border-slate-700 mb-4">
              <DataTable columns={modalColumns} data={currentModalUsers} />
          </div>
 
