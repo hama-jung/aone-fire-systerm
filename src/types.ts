@@ -115,6 +115,22 @@ export interface Repeater {
   status: '사용' | '미사용';
 }
 
+export interface Detector {
+  id: number;
+  marketId: number;
+  marketName?: string; // Join
+  storeId?: number;
+  storeName?: string; // Join
+  receiverMac: string;
+  repeaterId: string; // '01' ~ '20'
+  detectorId: string; // '01' ~ '20'
+  mode: '복합' | '열' | '연기';
+  cctvUrl?: string;
+  usageStatus: '사용' | '미사용';
+  smsList?: string[]; // 화재 발생시 SMS (수정 시에만 관리)
+  memo?: string;
+}
+
 export interface Distributor {
   id: number;
   name: string;           // 총판명

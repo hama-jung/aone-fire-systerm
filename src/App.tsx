@@ -13,6 +13,7 @@ import { WorkLogManagement } from './pages/WorkLogManagement';
 import { ReceiverManagement } from './pages/ReceiverManagement';
 import { RepeaterManagement } from './pages/RepeaterManagement';
 import { MenuManagement } from './pages/MenuManagement';
+import { DetectorManagement } from './pages/DetectorManagement';
 
 // Placeholder components for routes not fully implemented
 const PlaceholderPage: React.FC<{ title: string }> = ({ title }) => (
@@ -45,9 +46,9 @@ const App: React.FC = () => {
               <Route path="/receivers" element={<ReceiverManagement />} />
               <Route path="/repeaters" element={<RepeaterManagement />} />
               <Route path="/menus" element={<MenuManagement />} />
+              <Route path="/detectors" element={<DetectorManagement />} />
               
               {/* Placeholders for other menu items */}
-              <Route path="/detectors" element={<PlaceholderPage title="화재감지기 관리" />} />
               <Route path="/fire-history" element={<PlaceholderPage title="화재 이력 관리" />} />
               <Route path="/device-status" element={<PlaceholderPage title="기기 상태 관리" />} />
               

@@ -1,5 +1,5 @@
 import { supabase } from '../lib/supabaseClient';
-import { User, RoleItem, Market, Distributor, Store, WorkLog, Receiver, Repeater, MenuItemDB } from '../types';
+import { User, RoleItem, Market, Distributor, Store, WorkLog, Receiver, Repeater, Detector, MenuItemDB } from '../types';
 
 /**
  * [Supabase 연동 완료]
@@ -323,7 +323,7 @@ export const MarketAPI = {
 };
 
 export const StoreAPI = {
-  getList: async (params?: { address?: string, marketName?: string, storeName?: string }) => {
+  getList: async (params?: { address?: string, marketName?: string, storeName?: string, marketId?: number }) => {
     // 1. markets 테이블과 Join (Inner Join)
     let query = supabase
       .from('stores')
@@ -337,6 +337,9 @@ export const StoreAPI = {
     }
     if (params?.storeName) {
       query = query.ilike('name', `%${params.storeName}%`);
+    }
+    if (params?.marketId) {
+      query = query.eq('marketId', params.marketId);
     }
 
     query = query.order('id', { ascending: false });
@@ -359,7 +362,6 @@ export const StoreAPI = {
       repeaterId: s.repeaterId,
       detectorId: s.detectorId,
       mode: s.mode,
-      // 새로 추가된 필드들 (Supabase DB에 컬럼이 존재해야 함)
       address: s.address,
       addressDetail: s.addressDetail,
       latitude: s.latitude,
@@ -591,6 +593,69 @@ export const RepeaterAPI = {
       .getPublicUrl(filePath);
 
     return data.publicUrl;
+  }
+};
+
+export const DetectorAPI = {
+  getList: async (params?: { 
+    marketName?: string,
+    storeName?: string, 
+    receiverMac?: string, 
+    repeaterId?: string,
+    detectorId?: string 
+  }) => {
+    let query = supabase
+      .from('detectors')
+      .select('*, markets!inner(name), stores(name)')
+      .order('id', { ascending: false });
+
+    if (params?.marketName) query = query.ilike('markets.name', `%${params.marketName}%`);
+    if (params?.storeName) query = query.ilike('stores.name', `%${params.storeName}%`); // Note: foreign table filter might need !inner if strictly filtering
+    if (params?.receiverMac) query = query.ilike('receiverMac', `%${params.receiverMac}%`);
+    if (params?.repeaterId) query = query.eq('repeaterId', params.repeaterId);
+    if (params?.detectorId) query = query.eq('detectorId', params.detectorId);
+
+    const { data, error } = await query;
+    if (error) handleError(error);
+
+    return (data || []).map((item: any) => ({
+      ...item,
+      marketName: item.markets?.name,
+      storeName: item.stores?.name
+    }));
+  },
+
+  save: async (detector: Detector) => {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { id, marketName, storeName, ...payload } = detector;
+
+    if (detector.id === 0) {
+      const { data, error } = await supabase.from('detectors').insert(payload).select().single();
+      if (error) handleError(error);
+      return data;
+    } else {
+      const { data, error } = await supabase.from('detectors').update(payload).eq('id', detector.id).select().single();
+      if (error) handleError(error);
+      return data;
+    }
+  },
+
+  saveBulk: async (detectors: Detector[]) => {
+    if (detectors.length === 0) return;
+    const payload = detectors.map(d => {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { id, marketName, storeName, ...rest } = d;
+      return rest;
+    });
+    const { error } = await supabase.from('detectors').insert(payload);
+    if (error) handleError(error);
+    return true;
+  },
+
+  delete: async (id: number) => {
+    const { error } = await supabase.from('detectors').delete().eq('id', id);
+    if (error) handleError(error);
+    return true;
   }
 };
 
