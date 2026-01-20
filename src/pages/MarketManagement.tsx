@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   PageHeader, SearchFilterBar, InputGroup, SelectGroup,
-  Button, DataTable, Pagination, ActionBar, FormSection, FormRow, Column, AddressInput, UI_STYLES
+  Button, DataTable, Pagination, ActionBar, FormSection, FormRow, Column, AddressInput, UI_STYLES,
+  StatusBadge
 } from '../components/CommonUI';
 import { Market, Distributor } from '../types';
 import { MarketAPI, DistributorAPI } from '../services/api';
@@ -271,6 +272,7 @@ export const MarketManagement: React.FC = () => {
     { header: '담당자명', accessor: (m) => m.managerName || '-' },
     { header: '담당자전화', accessor: (m) => m.managerPhone || '-' },
     { header: '주소', accessor: (m) => `${m.address} ${m.addressDetail || ''}` },
+    { header: '사용여부', accessor: (m) => <StatusBadge status={m.usageStatus || '사용'} />, width: '100px' },
   ];
 
   // -- Pagination Logic --

@@ -20,8 +20,3 @@ create policy "Public Select transmitters" on public.transmitters for select usi
 create policy "Public Insert transmitters" on public.transmitters for insert with check ( true );
 create policy "Public Update transmitters" on public.transmitters for update using ( true );
 create policy "Public Delete transmitters" on public.transmitters for delete using ( true );
-
--- Insert Menu Item (발신기 관리) - 중복 방지를 위해 충돌 시 무시
-INSERT INTO public.menus ("parentId", label, path, "sortOrder", "isVisiblePc", "isVisibleMobile")
-VALUES (3, '발신기 관리', '/transmitters', 40, true, false)
-ON CONFLICT DO NOTHING;

@@ -20,8 +20,3 @@ create policy "Public Select alarms" on public.alarms for select using ( true );
 create policy "Public Insert alarms" on public.alarms for insert with check ( true );
 create policy "Public Update alarms" on public.alarms for update using ( true );
 create policy "Public Delete alarms" on public.alarms for delete using ( true );
-
--- Insert Menu Item (경종 관리) - 중복 방지를 위해 충돌 시 무시
-INSERT INTO public.menus ("parentId", label, path, "sortOrder", "isVisiblePc", "isVisibleMobile")
-VALUES (3, '경종 관리', '/alarms', 50, true, false)
-ON CONFLICT DO NOTHING;

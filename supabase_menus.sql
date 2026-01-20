@@ -39,7 +39,9 @@ INSERT INTO public.menus ("parentId", label, path, "sortOrder", "isVisiblePc", "
 INSERT INTO public.menus ("parentId", label, path, "sortOrder", "isVisiblePc", "isVisibleMobile") VALUES
 (3, 'R형 수신기 관리', '/receivers', 10, true, false),
 (3, '중계기 관리', '/repeaters', 20, true, false),
-(3, '화재감지기 관리', '/detectors', 30, true, false);
+(3, '화재감지기 관리', '/detectors', 30, true, false),
+(3, '발신기 관리', '/transmitters', 40, true, false),
+(3, '경종 관리', '/alarms', 50, true, false);
 
 -- Data Management Children (ParentID: 4)
 INSERT INTO public.menus ("parentId", label, path, "sortOrder", "isVisiblePc", "isVisibleMobile") VALUES
