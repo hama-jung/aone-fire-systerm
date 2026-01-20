@@ -302,17 +302,37 @@ export const MarketAPI = {
   },
 
   save: async (market: Market) => {
+    let savedMarket = null;
+
     if (market.id === 0) {
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { id, ...newMarket } = market;
       const { data, error } = await supabase.from('markets').insert(newMarket).select().single();
       if (error) handleError(error);
-      return data;
+      savedMarket = data;
     } else {
       const { data, error } = await supabase.from('markets').update(market).eq('id', market.id).select().single();
       if (error) handleError(error);
-      return data;
+      savedMarket = data;
+
+      // [Cascade Logic] If market is updated to '미사용', cascade update to all child tables
+      if (market.usageStatus === '미사용') {
+        const marketId = market.id;
+        try {
+          // All child tables now use 'status' column, so logic is unified and simple.
+          const tables = ['stores', 'receivers', 'repeaters', 'detectors', 'transmitters', 'alarms'];
+          
+          await Promise.all(
+            tables.map(table => 
+              supabase.from(table).update({ status: '미사용' }).eq('marketId', marketId)
+            )
+          );
+        } catch (cascadeError) {
+          console.error("Failed to cascade '미사용' status:", cascadeError);
+        }
+      }
     }
+    return savedMarket;
   },
 
   delete: async (id: number) => {
@@ -646,7 +666,7 @@ export const DetectorAPI = {
       detectorId: detector.detectorId,
       mode: detector.mode,
       cctvUrl: detector.cctvUrl,
-      usageStatus: detector.usageStatus,
+      status: detector.status, // unified name
       smsList: detector.smsList,
       memo: detector.memo
     };
@@ -694,7 +714,7 @@ export const DetectorAPI = {
         detectorId: d.detectorId,
         mode: d.mode,
         cctvUrl: d.cctvUrl,
-        usageStatus: d.usageStatus,
+        status: d.status, // unified name
         memo: d.memo
     }));
     
@@ -719,7 +739,7 @@ export const TransmitterAPI = {
 
     if (params?.marketName) query = query.ilike('markets.name', `%${params.marketName}%`);
     if (params?.receiverMac) query = query.ilike('receiverMac', `%${params.receiverMac}%`);
-    if (params?.usageStatus && params.usageStatus !== '전체') query = query.eq('usageStatus', params.usageStatus);
+    if (params?.usageStatus && params.usageStatus !== '전체') query = query.eq('status', params.usageStatus); // Query against 'status'
 
     const { data, error } = await query;
     if (error) handleError(error);
@@ -761,7 +781,7 @@ export const AlarmAPI = {
 
     if (params?.marketName) query = query.ilike('markets.name', `%${params.marketName}%`);
     if (params?.receiverMac) query = query.ilike('receiverMac', `%${params.receiverMac}%`);
-    if (params?.usageStatus && params.usageStatus !== '전체') query = query.eq('usageStatus', params.usageStatus);
+    if (params?.usageStatus && params.usageStatus !== '전체') query = query.eq('status', params.usageStatus); // Query against 'status'
 
     const { data, error } = await query;
     if (error) handleError(error);

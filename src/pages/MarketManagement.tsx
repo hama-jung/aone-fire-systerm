@@ -498,7 +498,13 @@ export const MarketManagement: React.FC = () => {
                  <RadioButtons 
                     name="usageStatus"
                     value={formData.usageStatus} 
-                    onChange={(v) => setFormData({...formData, usageStatus: v as any})}
+                    onChange={(v) => {
+                      // Prompt: 사용여부 '미사용' 설정 시 경고창 띄우기
+                      if (v === '미사용') {
+                        alert("미사용으로 변경하면 상가, 기기도 모두 미사용으로 바뀝니다.");
+                      }
+                      setFormData({...formData, usageStatus: v as any});
+                    }}
                     options={['사용', '미사용']}
                  />
               </FormRow>

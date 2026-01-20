@@ -1,10 +1,11 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   PageHeader, SearchFilterBar, InputGroup, SelectGroup, Button, DataTable, 
-  Pagination, ActionBar, FormSection, FormRow, Column, Modal, UI_STYLES 
+  Pagination, FormSection, FormRow, Column, UI_STYLES, Modal,
+  StatusBadge, StatusRadioGroup, MarketSearchModal, ReceiverSearchModal
 } from '../components/CommonUI';
 import { Detector, Market, Receiver, Store } from '../types';
-import { DetectorAPI, MarketAPI, ReceiverAPI, StoreAPI } from '../services/api';
+import { DetectorAPI, StoreAPI } from '../services/api';
 import { exportToExcel } from '../utils/excel';
 import { Search, Upload, X } from 'lucide-react';
 import * as XLSX from 'xlsx';
@@ -38,13 +39,11 @@ export const DetectorManagement: React.FC = () => {
   // Form Data
   const [formData, setFormData] = useState<Partial<Detector>>({});
   
-  // Receiver Modal
+  // Common Modals
   const [isReceiverModalOpen, setIsReceiverModalOpen] = useState(false);
-  const [receiverList, setReceiverList] = useState<Receiver[]>([]);
-  const [receiverSearchMac, setReceiverSearchMac] = useState('');
-  const [receiverModalPage, setReceiverModalPage] = useState(1);
+  const [isMarketModalOpen, setIsMarketModalOpen] = useState(false);
 
-  // Store Modal (Multiple Stores)
+  // Store Modal (Multiple Stores) - Keep local as it's specific
   const [isStoreModalOpen, setIsStoreModalOpen] = useState(false);
   const [storeList, setStoreList] = useState<Store[]>([]);
   const [storeSearchName, setStoreSearchName] = useState('');
@@ -58,10 +57,6 @@ export const DetectorManagement: React.FC = () => {
   // Excel Upload
   const [excelData, setExcelData] = useState<Detector[]>([]);
   const [excelMarket, setExcelMarket] = useState<Market | null>(null);
-  const [isMarketModalOpen, setIsMarketModalOpen] = useState(false);
-  const [marketList, setMarketList] = useState<Market[]>([]);
-  const [marketSearchName, setMarketSearchName] = useState('');
-  const [marketModalPage, setMarketModalPage] = useState(1);
 
   // --- Data Fetching ---
   const fetchDetectors = async (overrides?: any) => {
@@ -116,7 +111,7 @@ export const DetectorManagement: React.FC = () => {
       repeaterId: '01', 
       detectorId: '01',
       mode: '복합',
-      usageStatus: '사용',
+      status: '사용', // unified name
       cctvUrl: '',
       memo: ''
     });
@@ -165,7 +160,7 @@ export const DetectorManagement: React.FC = () => {
         ...formData as Detector,
         id: selectedDetector?.id || 0,
         smsList: smsFireList,
-        stores: selectedStores // Attach multiple stores
+        stores: selectedStores 
       };
 
       await DetectorAPI.save(newDetector);
@@ -193,17 +188,9 @@ export const DetectorManagement: React.FC = () => {
     setSelectedStores(selectedStores.filter(s => s.id !== storeId));
   };
 
-  // --- Receiver Search Modal ---
-  const fetchReceivers = async () => {
-    const data = await ReceiverAPI.getList({ macAddress: receiverSearchMac });
-    setReceiverList(data);
-    setReceiverModalPage(1);
-  };
-  const openReceiverModal = () => {
-    setReceiverSearchMac('');
-    fetchReceivers();
-    setIsReceiverModalOpen(true);
-  };
+  // --- Receiver Search Modal Handlers ---
+  const openReceiverModal = () => setIsReceiverModalOpen(true);
+
   const handleReceiverSelect = (r: Receiver) => {
     setFormData({ 
       ...formData, 
@@ -216,7 +203,7 @@ export const DetectorManagement: React.FC = () => {
     setIsReceiverModalOpen(false);
   };
 
-  // --- Store Search Modal ---
+  // --- Store Search Modal Handlers ---
   const fetchStores = async () => {
     if (!formData.marketId) {
         setStoreList([]);
@@ -249,16 +236,8 @@ export const DetectorManagement: React.FC = () => {
   };
 
   // --- Market Search Modal (Excel) ---
-  const fetchMarkets = async () => {
-    const data = await MarketAPI.getList({ name: marketSearchName });
-    setMarketList(data);
-    setMarketModalPage(1);
-  };
-  const openMarketModal = () => {
-    setMarketSearchName('');
-    fetchMarkets();
-    setIsMarketModalOpen(true);
-  };
+  const openMarketModal = () => setIsMarketModalOpen(true);
+
   const handleMarketSelect = (m: Market) => {
     setExcelMarket(m);
     setIsMarketModalOpen(false);
@@ -290,10 +269,10 @@ export const DetectorManagement: React.FC = () => {
         repeaterId: row['중계기ID'] ? String(row['중계기ID']).padStart(2, '0') : '01',
         detectorId: row['감지기ID'] ? String(row['감지기ID']).padStart(2, '0') : '01',
         mode: row['모드'] || '복합',
-        usageStatus: row['사용여부'] || '사용',
+        status: row['사용여부'] || '사용', // unified name
         cctvUrl: row['CCTV URL'] || '',
         memo: row['비고'] || '',
-        stores: row['상가명'] ? [{ id: 0, name: row['상가명'] }] : [] // 엑셀 일괄 등록시 상가명 표시용
+        stores: row['상가명'] ? [{ id: 0, name: row['상가명'] }] : [] 
       }));
 
       setExcelData(parsedData);
@@ -353,12 +332,8 @@ export const DetectorManagement: React.FC = () => {
       }, 
       width: '150px' 
     },
-    // Fix 1: Reduce Width of CCTV URL to give space for usage status
     { header: 'CCTV URL', accessor: 'cctvUrl', width: '150px' },
-    // Fix 1: Increase Width of Usage Status to prevent wrapping
-    { header: '사용여부', accessor: (item) => (
-      <span className={item.usageStatus === '사용' ? 'text-green-400' : 'text-red-400'}>{item.usageStatus}</span>
-    ), width: '100px' },
+    { header: '사용여부', accessor: (item) => <StatusBadge status={item.status} />, width: '100px' },
   ];
 
   // Pagination logic
@@ -367,21 +342,11 @@ export const DetectorManagement: React.FC = () => {
   const currentItems = detectors.slice(indexOfFirstItem, indexOfLastItem);
   const totalPages = Math.ceil(detectors.length / ITEMS_PER_PAGE);
 
-  // Modal Paginations
-  const rmLast = receiverModalPage * MODAL_ITEMS_PER_PAGE;
-  const rmFirst = rmLast - MODAL_ITEMS_PER_PAGE;
-  const currentReceivers = receiverList.slice(rmFirst, rmLast);
-  const rmTotal = Math.ceil(receiverList.length / MODAL_ITEMS_PER_PAGE);
-
+  // Store Modal Pagination
   const smLast = storeModalPage * MODAL_ITEMS_PER_PAGE;
   const smFirst = smLast - MODAL_ITEMS_PER_PAGE;
   const currentStores = storeList.slice(smFirst, smLast);
   const smTotal = Math.ceil(storeList.length / MODAL_ITEMS_PER_PAGE);
-
-  const mmLast = marketModalPage * MODAL_ITEMS_PER_PAGE;
-  const mmFirst = mmLast - MODAL_ITEMS_PER_PAGE;
-  const currentMarkets = marketList.slice(mmFirst, mmLast);
-  const mmTotal = Math.ceil(marketList.length / MODAL_ITEMS_PER_PAGE);
 
   // --- View: Form ---
   if (view === 'form') {
@@ -490,26 +455,11 @@ export const DetectorManagement: React.FC = () => {
 
             {/* 사용여부 */}
             <FormRow label="사용여부">
-              <div className={`${UI_STYLES.input} flex gap-4 text-slate-300 items-center`}>
-                <label className="flex items-center gap-2 cursor-pointer hover:text-white">
-                  <input 
-                    type="radio" name="status" value="사용" 
-                    checked={formData.usageStatus === '사용'} 
-                    onChange={() => setFormData({...formData, usageStatus: '사용'})}
-                    className="accent-blue-500" 
-                  />
-                  <span>사용</span>
-                </label>
-                <label className="flex items-center gap-2 cursor-pointer hover:text-white">
-                  <input 
-                    type="radio" name="status" value="미사용" 
-                    checked={formData.usageStatus === '미사용'} 
-                    onChange={() => setFormData({...formData, usageStatus: '미사용'})}
-                    className="accent-blue-500" 
-                  />
-                  <span>미사용</span>
-                </label>
-              </div>
+              <StatusRadioGroup 
+                label=""
+                value={formData.status} 
+                onChange={(val) => setFormData({...formData, status: val as any})} 
+              />
             </FormRow>
 
             {/* CCTV URL */}
@@ -535,23 +485,14 @@ export const DetectorManagement: React.FC = () => {
           </div>
         </form>
 
-        {/* Receiver Search Modal */}
-        <Modal isOpen={isReceiverModalOpen} onClose={() => setIsReceiverModalOpen(false)} title="수신기 찾기" width="max-w-3xl">
-           <SearchFilterBar onSearch={fetchReceivers}>
-              <InputGroup label="MAC주소" value={receiverSearchMac} onChange={(e) => setReceiverSearchMac(e.target.value)} placeholder="MAC주소 검색" />
-           </SearchFilterBar>
-           <DataTable 
-             columns={[
-                { header: 'MAC주소', accessor: 'macAddress', width: '150px' },
-                { header: '설치시장', accessor: 'marketName' },
-                { header: '선택', accessor: (item) => <Button variant="primary" onClick={() => handleReceiverSelect(item)} className="px-2 py-1 text-xs">선택</Button>, width: '80px' }
-             ]} 
-             data={currentReceivers} 
-           />
-           <Pagination totalItems={receiverList.length} itemsPerPage={MODAL_ITEMS_PER_PAGE} currentPage={receiverModalPage} onPageChange={setReceiverModalPage} />
-        </Modal>
+        {/* Common Receiver Modal */}
+        <ReceiverSearchModal
+          isOpen={isReceiverModalOpen} 
+          onClose={() => setIsReceiverModalOpen(false)} 
+          onSelect={handleReceiverSelect}
+        />
 
-        {/* Store Search Modal */}
+        {/* Store Search Modal - Kept local */}
         <Modal isOpen={isStoreModalOpen} onClose={() => setIsStoreModalOpen(false)} title="상가 리스트" width="max-w-4xl">
            <SearchFilterBar onSearch={fetchStores}>
               <InputGroup label="상가명" value={storeSearchName} onChange={(e) => setStoreSearchName(e.target.value)} placeholder="상가명 검색" />
@@ -569,72 +510,13 @@ export const DetectorManagement: React.FC = () => {
            />
            <Pagination totalItems={storeList.length} itemsPerPage={MODAL_ITEMS_PER_PAGE} currentPage={storeModalPage} onPageChange={setStoreModalPage} />
         </Modal>
-      </>
-    );
-  }
 
-  // --- View: Excel ---
-  if (view === 'excel') {
-    return (
-      <>
-        <PageHeader title="화재감지기 엑셀 신규 등록" />
-        <FormSection title="엑셀 일괄 등록">
-            <FormRow label="소속 시장" required className="col-span-1 md:col-span-2">
-               <div className="flex gap-2 w-full max-w-md">
-                 <div onClick={openMarketModal} className="flex-1 relative cursor-pointer">
-                    <input type="text" value={excelMarket?.name || ''} placeholder="등록할 시장을 선택하세요" readOnly className={`${UI_STYLES.input} cursor-pointer hover:bg-slate-700/50 pr-8`}/>
-                    <Search className="absolute right-3 top-2.5 text-slate-400 pointer-events-none" size={16} />
-                 </div>
-                 <Button type="button" variant="secondary" onClick={openMarketModal}>찾기</Button>
-               </div>
-            </FormRow>
-            <FormRow label="엑셀 파일 선택" required className="col-span-1 md:col-span-2">
-                <div className="flex flex-col gap-2">
-                   <InputGroup type="file" accept=".xlsx, .xls" onChange={handleExcelFileChange} className="border-0 p-0 text-slate-300 w-full"/>
-                   <p className="text-xs text-slate-400">* 수신기MAC, 중계기ID, 감지기ID, 상가명, 모드, 사용여부 컬럼 포함 필수</p>
-                </div>
-            </FormRow>
-            <FormRow label="샘플 양식" className="col-span-1 md:col-span-2">
-                <Button type="button" variant="secondary" onClick={handleSampleDownload} icon={<Upload size={14} />}>엑셀 샘플 다운로드</Button>
-            </FormRow>
-        </FormSection>
-
-        {excelData.length > 0 && (
-          <div className="mt-8">
-             <h3 className="text-lg font-bold text-slate-200 mb-2">등록 미리보기 ({excelData.length}건)</h3>
-             <DataTable<Detector> 
-               columns={[
-                  {header:'수신기MAC', accessor:'receiverMac'},
-                  {header:'중계기ID', accessor:'repeaterId'},
-                  {header:'감지기ID', accessor:'detectorId'},
-                  {header:'상가명', accessor: (d) => d.stores?.[0]?.name || '-'},
-                  {header:'모드', accessor:'mode'},
-               ]}
-               data={excelData.slice(0, 50)} 
-             />
-             {excelData.length > 50 && <p className="text-center text-slate-500 text-sm mt-2">...외 {excelData.length - 50}건</p>}
-          </div>
-        )}
-
-        <div className="flex justify-center gap-3 mt-8">
-            <Button type="button" variant="primary" onClick={handleExcelSave} className="w-32" disabled={excelData.length === 0}>일괄 등록</Button>
-            <Button type="button" variant="secondary" onClick={() => setView('list')} className="w-32">취소</Button>
-        </div>
-
-        <Modal isOpen={isMarketModalOpen} onClose={() => setIsMarketModalOpen(false)} title="시장 찾기" width="max-w-3xl">
-           <SearchFilterBar onSearch={fetchMarkets}>
-              <InputGroup label="시장명" value={marketSearchName} onChange={(e) => setMarketSearchName(e.target.value)} placeholder="시장명 검색" />
-           </SearchFilterBar>
-           <DataTable 
-             columns={[
-                { header: '시장명', accessor: 'name' },
-                { header: '주소', accessor: 'address' },
-                { header: '선택', accessor: (item) => <Button variant="primary" onClick={() => handleMarketSelect(item)} className="px-2 py-1 text-xs">선택</Button>, width: '80px' }
-             ]}
-             data={currentMarkets} 
-           />
-           <Pagination totalItems={marketList.length} itemsPerPage={MODAL_ITEMS_PER_PAGE} currentPage={marketModalPage} onPageChange={setMarketModalPage} />
-        </Modal>
+        {/* Common Market Modal */}
+        <MarketSearchModal 
+          isOpen={isMarketModalOpen} 
+          onClose={() => setIsMarketModalOpen(false)} 
+          onSelect={handleMarketSelect} 
+        />
       </>
     );
   }

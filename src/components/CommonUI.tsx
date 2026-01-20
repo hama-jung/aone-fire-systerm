@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { ChevronLeft, ChevronRight, Search, Plus, FileSpreadsheet, Trash2, Edit, Save, X, Home, RotateCcw } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Search, Plus, FileSpreadsheet, Trash2, RotateCcw, X } from 'lucide-react';
+import { Market, Receiver } from '../types';
+import { MarketAPI, ReceiverAPI } from '../services/api';
 
 // --- Colors & Styles Constants (Dark Mode) ---
 export const UI_STYLES = {
@@ -103,6 +105,49 @@ export const SelectGroup: React.FC<SelectGroupProps> = ({ label, options, classN
   </div>
 );
 
+// --- Status Badge ---
+export const StatusBadge: React.FC<{ status: string }> = ({ status }) => (
+  <span className={`px-2 py-0.5 rounded text-xs font-medium border ${
+    status === '사용' 
+      ? 'bg-green-900/30 text-green-400 border-green-800' 
+      : 'bg-red-900/30 text-red-400 border-red-800'
+  }`}>
+    {status}
+  </span>
+);
+
+// --- Status Radio Group ---
+export const StatusRadioGroup: React.FC<{ 
+  label?: string; 
+  value: string | undefined; 
+  onChange: (val: string) => void; 
+  name?: string; 
+}> = ({ label = "사용여부", value, onChange, name = "status" }) => (
+  <div className={`flex flex-col gap-1.5 w-full`}>
+    <label className={UI_STYLES.label}>{label}</label>
+    <div className={`${UI_STYLES.input} flex gap-4 text-slate-300 items-center`}>
+      <label className="flex items-center gap-2 cursor-pointer hover:text-white transition-colors">
+        <input 
+          type="radio" name={name} value="사용" 
+          checked={value === '사용'} 
+          onChange={() => onChange('사용')}
+          className="accent-blue-500 w-4 h-4" 
+        />
+        <span>사용</span>
+      </label>
+      <label className="flex items-center gap-2 cursor-pointer hover:text-white transition-colors">
+        <input 
+          type="radio" name={name} value="미사용" 
+          checked={value === '미사용'} 
+          onChange={() => onChange('미사용')}
+          className="accent-blue-500 w-4 h-4" 
+        />
+        <span>미사용</span>
+      </label>
+    </div>
+  </div>
+);
+
 // --- Modal ---
 interface ModalProps {
   isOpen: boolean;
@@ -140,6 +185,121 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, icon, chil
         </div>
       </div>
     </div>
+  );
+};
+
+// --- Business Modals (Market, Receiver) ---
+
+export const MarketSearchModal: React.FC<{
+  isOpen: boolean;
+  onClose: () => void;
+  onSelect: (market: Market) => void;
+}> = ({ isOpen, onClose, onSelect }) => {
+  const [list, setList] = useState<Market[]>([]);
+  const [searchName, setSearchName] = useState('');
+  const [page, setPage] = useState(1);
+  const PER_PAGE = 5;
+
+  const fetchMarkets = async () => {
+    const data = await MarketAPI.getList({ name: searchName });
+    setList(data);
+    setPage(1);
+  };
+
+  // Open될 때 초기화
+  useEffect(() => {
+    if (isOpen) {
+      setSearchName('');
+      fetchMarkets();
+    }
+  }, [isOpen]);
+
+  const currentItems = list.slice((page - 1) * PER_PAGE, page * PER_PAGE);
+
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} title="시장 찾기" width="max-w-3xl">
+      <SearchFilterBar onSearch={fetchMarkets}>
+        <InputGroup 
+          label="시장명" 
+          value={searchName} 
+          onChange={(e) => setSearchName(e.target.value)} 
+          placeholder="시장명 검색"
+          onKeyDown={(e) => e.key === 'Enter' && fetchMarkets()}
+        />
+      </SearchFilterBar>
+      <DataTable 
+        columns={[
+          { header: '시장명', accessor: 'name' },
+          { header: '주소', accessor: 'address' },
+          { header: '선택', accessor: (item) => (
+            <Button variant="primary" onClick={() => onSelect(item)} className="px-2 py-1 text-xs">선택</Button>
+          ), width: '80px' }
+        ]} 
+        data={currentItems} 
+      />
+      <Pagination 
+        totalItems={list.length} 
+        itemsPerPage={PER_PAGE} 
+        currentPage={page} 
+        onPageChange={setPage} 
+      />
+    </Modal>
+  );
+};
+
+export const ReceiverSearchModal: React.FC<{
+  isOpen: boolean;
+  onClose: () => void;
+  onSelect: (receiver: Receiver) => void;
+}> = ({ isOpen, onClose, onSelect }) => {
+  const [list, setList] = useState<Receiver[]>([]);
+  const [searchMac, setSearchMac] = useState('');
+  const [page, setPage] = useState(1);
+  const PER_PAGE = 5;
+
+  const fetchReceivers = async () => {
+    const data = await ReceiverAPI.getList({ macAddress: searchMac });
+    setList(data);
+    setPage(1);
+  };
+
+  useEffect(() => {
+    if (isOpen) {
+      setSearchMac('');
+      fetchReceivers();
+    }
+  }, [isOpen]);
+
+  const currentItems = list.slice((page - 1) * PER_PAGE, page * PER_PAGE);
+
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} title="수신기 찾기" width="max-w-3xl">
+      <SearchFilterBar onSearch={fetchReceivers}>
+        <InputGroup 
+          label="MAC주소" 
+          value={searchMac} 
+          onChange={(e) => setSearchMac(e.target.value)} 
+          placeholder="MAC주소 검색"
+          onKeyDown={(e) => e.key === 'Enter' && fetchReceivers()}
+        />
+      </SearchFilterBar>
+      <DataTable 
+        columns={[
+          { header: 'MAC주소', accessor: 'macAddress', width: '150px' },
+          { header: '설치시장', accessor: 'marketName' },
+          { header: '선택', accessor: (item) => (
+            <Button variant="primary" onClick={() => onSelect(item)} className="px-2 py-1 text-xs">선택</Button>
+          ), width: '80px' }
+        ]} 
+        data={currentItems} 
+      />
+      <Pagination 
+        totalItems={list.length} 
+        itemsPerPage={PER_PAGE} 
+        currentPage={page} 
+        onPageChange={setPage} 
+      />
+    </Modal>
   );
 };
 

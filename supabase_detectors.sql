@@ -11,7 +11,7 @@ create table if not exists public.detectors (
   "detectorId" text not null, -- '01' ~ '20'
   mode text default '복합', -- 복합, 열, 연기
   "cctvUrl" text,
-  "usageStatus" text default '사용',
+  status text default '사용', -- usageStatus -> status 변경
   "smsList" text[] default '{}',
   memo text,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null

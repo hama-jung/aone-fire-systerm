@@ -49,7 +49,7 @@ export interface Market {
   enableStoreSms?: '사용' | '미사용';        // 상가주인 문자전송여부
   enableMultiMedia?: '사용' | '미사용';      // 다매체전송 여부
   multiMediaType?: '복합' | '열' | '연기';   // 다매체 타입
-  usageStatus?: '사용' | '미사용';           // 시장 사용여부 (설정값)
+  usageStatus?: '사용' | '미사용';           // 시장 사용여부 (설정값) - Note: Market still uses usageStatus to distinguish from live status
   enableDeviceFaultSms?: '사용' | '미사용';  // 기기고장 문자전송여부
   enableCctvUrl?: '사용' | '미사용';         // 화재문자시 CCTV URL 포함여부
 
@@ -128,7 +128,7 @@ export interface Detector {
   detectorId: string; // '01' ~ '20'
   mode: '복합' | '열' | '연기';
   cctvUrl?: string;
-  usageStatus: '사용' | '미사용';
+  status: '사용' | '미사용'; // Renamed from usageStatus
   smsList?: string[]; // 화재 발생시 SMS (수정 시에만 관리)
   memo?: string;
 }
@@ -140,7 +140,7 @@ export interface Transmitter {
   receiverMac: string;
   repeaterId: string; // '01' ~ '20'
   transmitterId: string; // '01' ~ '20'
-  usageStatus: '사용' | '미사용';
+  status: '사용' | '미사용'; // Renamed from usageStatus
   memo?: string;
 }
 
@@ -151,7 +151,7 @@ export interface Alarm {
   receiverMac: string;
   repeaterId: string; // '01' ~ '20'
   alarmId: string; // '01' ~ '20'
-  usageStatus: '사용' | '미사용';
+  status: '사용' | '미사용'; // Renamed from usageStatus
   memo?: string;
 }
 

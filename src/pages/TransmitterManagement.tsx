@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { 
   PageHeader, SearchFilterBar, InputGroup, SelectGroup, Button, DataTable, 
-  Pagination, FormSection, FormRow, Column, Modal, UI_STYLES 
+  Pagination, FormSection, FormRow, Column, UI_STYLES,
+  StatusBadge, StatusRadioGroup, ReceiverSearchModal
 } from '../components/CommonUI';
 import { Transmitter, Receiver } from '../types';
-import { TransmitterAPI, ReceiverAPI } from '../services/api';
+import { TransmitterAPI } from '../services/api';
 import { Search } from 'lucide-react';
 
 const ITEMS_PER_PAGE = 10;
-const MODAL_ITEMS_PER_PAGE = 5;
 
 // ID Options (01 ~ 20)
 const ID_OPTIONS = Array.from({ length: 20 }, (_, i) => {
@@ -34,11 +34,8 @@ export const TransmitterManagement: React.FC = () => {
   // Form Data
   const [formData, setFormData] = useState<Partial<Transmitter>>({});
   
-  // Receiver Modal
+  // Common Modals
   const [isReceiverModalOpen, setIsReceiverModalOpen] = useState(false);
-  const [receiverList, setReceiverList] = useState<Receiver[]>([]);
-  const [receiverSearchMac, setReceiverSearchMac] = useState('');
-  const [receiverModalPage, setReceiverModalPage] = useState(1);
 
   // --- Data Fetching ---
   const fetchTransmitters = async (overrides?: any) => {
@@ -88,7 +85,7 @@ export const TransmitterManagement: React.FC = () => {
     setFormData({ 
       repeaterId: '01', 
       transmitterId: '01',
-      usageStatus: '사용',
+      status: '사용', // unified name
       memo: ''
     });
     setView('form');
@@ -136,17 +133,9 @@ export const TransmitterManagement: React.FC = () => {
     }
   };
 
-  // --- Receiver Search Modal ---
-  const fetchReceivers = async () => {
-    const data = await ReceiverAPI.getList({ macAddress: receiverSearchMac });
-    setReceiverList(data);
-    setReceiverModalPage(1);
-  };
-  const openReceiverModal = () => {
-    setReceiverSearchMac('');
-    fetchReceivers();
-    setIsReceiverModalOpen(true);
-  };
+  // --- Receiver Search Modal Handlers ---
+  const openReceiverModal = () => setIsReceiverModalOpen(true);
+
   const handleReceiverSelect = (r: Receiver) => {
     setFormData({ 
       ...formData, 
@@ -164,9 +153,7 @@ export const TransmitterManagement: React.FC = () => {
     { header: '중계기 ID', accessor: 'repeaterId', width: '100px' },
     { header: '발신기 ID', accessor: 'transmitterId', width: '100px' },
     { header: '설치시장', accessor: 'marketName' },
-    { header: '사용여부', accessor: (item) => (
-      <span className={item.usageStatus === '사용' ? 'text-green-400' : 'text-red-400'}>{item.usageStatus}</span>
-    ), width: '100px' },
+    { header: '사용여부', accessor: (item) => <StatusBadge status={item.status} />, width: '100px' },
   ];
 
   // Pagination logic
@@ -174,12 +161,6 @@ export const TransmitterManagement: React.FC = () => {
   const indexOfFirstItem = indexOfLastItem - ITEMS_PER_PAGE;
   const currentItems = transmitters.slice(indexOfFirstItem, indexOfLastItem);
   const totalPages = Math.ceil(transmitters.length / ITEMS_PER_PAGE);
-
-  // Modal Pagination
-  const rmLast = receiverModalPage * MODAL_ITEMS_PER_PAGE;
-  const rmFirst = rmLast - MODAL_ITEMS_PER_PAGE;
-  const currentReceivers = receiverList.slice(rmFirst, rmLast);
-  const rmTotal = Math.ceil(receiverList.length / MODAL_ITEMS_PER_PAGE);
 
   // --- View: Form ---
   if (view === 'form') {
@@ -234,26 +215,11 @@ export const TransmitterManagement: React.FC = () => {
 
             {/* 사용여부 */}
             <FormRow label="사용여부">
-              <div className={`${UI_STYLES.input} flex gap-4 text-slate-300 items-center`}>
-                <label className="flex items-center gap-2 cursor-pointer hover:text-white">
-                  <input 
-                    type="radio" name="status" value="사용" 
-                    checked={formData.usageStatus === '사용'} 
-                    onChange={() => setFormData({...formData, usageStatus: '사용'})}
-                    className="accent-blue-500" 
-                  />
-                  <span>사용</span>
-                </label>
-                <label className="flex items-center gap-2 cursor-pointer hover:text-white">
-                  <input 
-                    type="radio" name="status" value="미사용" 
-                    checked={formData.usageStatus === '미사용'} 
-                    onChange={() => setFormData({...formData, usageStatus: '미사용'})}
-                    className="accent-blue-500" 
-                  />
-                  <span>미사용</span>
-                </label>
-              </div>
+              <StatusRadioGroup 
+                label=""
+                value={formData.status} 
+                onChange={(val) => setFormData({...formData, status: val as any})}
+              />
             </FormRow>
           </FormSection>
 
@@ -266,21 +232,12 @@ export const TransmitterManagement: React.FC = () => {
           </div>
         </form>
 
-        {/* Receiver Search Modal */}
-        <Modal isOpen={isReceiverModalOpen} onClose={() => setIsReceiverModalOpen(false)} title="수신기 찾기" width="max-w-3xl">
-           <SearchFilterBar onSearch={fetchReceivers}>
-              <InputGroup label="MAC주소" value={receiverSearchMac} onChange={(e) => setReceiverSearchMac(e.target.value)} placeholder="MAC주소 검색" />
-           </SearchFilterBar>
-           <DataTable 
-             columns={[
-                { header: 'MAC주소', accessor: 'macAddress', width: '150px' },
-                { header: '설치시장', accessor: 'marketName' },
-                { header: '선택', accessor: (item) => <Button variant="primary" onClick={() => handleReceiverSelect(item)} className="px-2 py-1 text-xs">선택</Button>, width: '80px' }
-             ]} 
-             data={currentReceivers} 
-           />
-           <Pagination totalItems={receiverList.length} itemsPerPage={MODAL_ITEMS_PER_PAGE} currentPage={receiverModalPage} onPageChange={setReceiverModalPage} />
-        </Modal>
+        {/* Common Receiver Modal */}
+        <ReceiverSearchModal
+          isOpen={isReceiverModalOpen} 
+          onClose={() => setIsReceiverModalOpen(false)} 
+          onSelect={handleReceiverSelect}
+        />
       </>
     );
   }

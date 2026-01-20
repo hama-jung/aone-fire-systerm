@@ -1,16 +1,16 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   PageHeader, SearchFilterBar, InputGroup, SelectGroup, Button, DataTable, 
-  Pagination, ActionBar, FormSection, FormRow, Column, Modal, UI_STYLES 
+  Pagination, FormSection, FormRow, Column, UI_STYLES,
+  StatusBadge, StatusRadioGroup, MarketSearchModal
 } from '../components/CommonUI';
 import { Receiver, Market } from '../types';
-import { ReceiverAPI, MarketAPI } from '../services/api';
+import { ReceiverAPI } from '../services/api';
 import { exportToExcel } from '../utils/excel';
 import { Search, X, Paperclip, Upload } from 'lucide-react';
 import * as XLSX from 'xlsx';
 
 const ITEMS_PER_PAGE = 10;
-const MODAL_ITEMS_PER_PAGE = 5;
 
 // 데이터 전송 주기 옵션 (01시간 ~ 23시간)
 const INTERVAL_OPTIONS = Array.from({ length: 23 }, (_, i) => {
@@ -40,11 +40,8 @@ export const ReceiverManagement: React.FC = () => {
   const [imageFile, setImageFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Market Modal
+  // Common Modals
   const [isMarketModalOpen, setIsMarketModalOpen] = useState(false);
-  const [marketList, setMarketList] = useState<Market[]>([]);
-  const [marketSearchName, setMarketSearchName] = useState('');
-  const [marketModalPage, setMarketModalPage] = useState(1);
 
   // Excel Upload
   const [excelData, setExcelData] = useState<Receiver[]>([]);
@@ -211,17 +208,7 @@ export const ReceiverManagement: React.FC = () => {
   };
 
   // --- Market Modal Handlers ---
-  const fetchMarkets = async () => {
-    const data = await MarketAPI.getList({ name: marketSearchName });
-    setMarketList(data);
-    setMarketModalPage(1);
-  };
-
-  const openMarketModal = () => {
-    setMarketSearchName('');
-    fetchMarkets();
-    setIsMarketModalOpen(true);
-  };
+  const openMarketModal = () => setIsMarketModalOpen(true);
 
   const handleMarketSelect = (market: Market) => {
     if (view === 'form') {
@@ -311,17 +298,7 @@ export const ReceiverManagement: React.FC = () => {
     { header: '전화번호', accessor: 'emergencyPhone', width: '200px' },
     { header: 'DNS', accessor: 'dns', width: '200px' },
     { header: '송신주기', accessor: 'transmissionInterval', width: '150px' },
-    { header: '사용여부', accessor: (item) => (
-      <span className={item.status === '사용' ? 'text-green-400' : 'text-red-400'}>{item.status}</span>
-    ), width: '120px' },
-  ];
-
-  const marketColumns: Column<Market>[] = [
-    { header: '시장명', accessor: 'name' },
-    { header: '주소', accessor: 'address' },
-    { header: '선택', accessor: (item) => (
-      <Button variant="primary" onClick={() => handleMarketSelect(item)} className="px-2 py-1 text-xs">선택</Button>
-    ), width: '80px' }
+    { header: '사용여부', accessor: (item) => <StatusBadge status={item.status} />, width: '120px' },
   ];
 
   // --- Pagination ---
@@ -329,11 +306,6 @@ export const ReceiverManagement: React.FC = () => {
   const indexOfFirstItem = indexOfLastItem - ITEMS_PER_PAGE;
   const currentItems = receivers.slice(indexOfFirstItem, indexOfLastItem);
   const totalPages = Math.ceil(receivers.length / ITEMS_PER_PAGE);
-
-  const modalIndexOfLast = marketModalPage * MODAL_ITEMS_PER_PAGE;
-  const modalIndexOfFirst = modalIndexOfLast - MODAL_ITEMS_PER_PAGE;
-  const modalCurrentMarkets = marketList.slice(modalIndexOfFirst, modalIndexOfLast);
-  const modalTotalPages = Math.ceil(marketList.length / MODAL_ITEMS_PER_PAGE);
 
   // --- View: Form ---
   if (view === 'form') {
@@ -364,7 +336,7 @@ export const ReceiverManagement: React.FC = () => {
               />
             </FormRow>
 
-            {/* DNS (Full Width in design, but let's keep grid consistency or use col-span-2 if needed. Design shows it full width) */}
+            {/* DNS */}
             <FormRow label="DNS" className="col-span-1 md:col-span-2">
               <InputGroup 
                 value={formData.dns || ''} 
@@ -429,26 +401,10 @@ export const ReceiverManagement: React.FC = () => {
 
             {/* 사용여부 */}
             <FormRow label="사용여부">
-              <div className={`${UI_STYLES.input} flex gap-4 text-slate-300 items-center`}>
-                <label className="flex items-center gap-2 cursor-pointer hover:text-white">
-                  <input 
-                    type="radio" name="status" value="사용" 
-                    checked={formData.status === '사용'} 
-                    onChange={() => setFormData({...formData, status: '사용'})}
-                    className="accent-blue-500" 
-                  />
-                  <span>사용</span>
-                </label>
-                <label className="flex items-center gap-2 cursor-pointer hover:text-white">
-                  <input 
-                    type="radio" name="status" value="미사용" 
-                    checked={formData.status === '미사용'} 
-                    onChange={() => setFormData({...formData, status: '미사용'})}
-                    className="accent-blue-500" 
-                  />
-                  <span>미사용</span>
-                </label>
-              </div>
+              <StatusRadioGroup 
+                value={formData.status} 
+                onChange={(val) => setFormData({...formData, status: val as any})} 
+              />
             </FormRow>
           </FormSection>
 
@@ -458,21 +414,12 @@ export const ReceiverManagement: React.FC = () => {
           </div>
         </form>
 
-        {/* Market Select Modal */}
-        <Modal isOpen={isMarketModalOpen} onClose={() => setIsMarketModalOpen(false)} title="시장 찾기" width="max-w-3xl">
-           <SearchFilterBar onSearch={fetchMarkets}>
-              <InputGroup 
-                 label="시장명" 
-                 value={marketSearchName} 
-                 onChange={(e) => setMarketSearchName(e.target.value)} 
-                 placeholder="시장명 검색"
-              />
-           </SearchFilterBar>
-           <DataTable columns={marketColumns} data={modalCurrentMarkets} />
-           <Pagination 
-              totalItems={marketList.length} itemsPerPage={MODAL_ITEMS_PER_PAGE} currentPage={marketModalPage} onPageChange={setMarketModalPage} 
-           />
-        </Modal>
+        {/* Common Market Modal */}
+        <MarketSearchModal 
+          isOpen={isMarketModalOpen} 
+          onClose={() => setIsMarketModalOpen(false)} 
+          onSelect={handleMarketSelect} 
+        />
       </>
     );
   }
@@ -547,21 +494,12 @@ export const ReceiverManagement: React.FC = () => {
             <Button type="button" variant="secondary" onClick={() => setView('list')} className="w-32">취소</Button>
         </div>
 
-        {/* Market Select Modal */}
-        <Modal isOpen={isMarketModalOpen} onClose={() => setIsMarketModalOpen(false)} title="시장 찾기" width="max-w-3xl">
-           <SearchFilterBar onSearch={fetchMarkets}>
-              <InputGroup 
-                 label="시장명" 
-                 value={marketSearchName} 
-                 onChange={(e) => setMarketSearchName(e.target.value)} 
-                 placeholder="시장명 검색"
-              />
-           </SearchFilterBar>
-           <DataTable columns={marketColumns} data={modalCurrentMarkets} />
-           <Pagination 
-              totalItems={marketList.length} itemsPerPage={MODAL_ITEMS_PER_PAGE} currentPage={marketModalPage} onPageChange={setMarketModalPage} 
-           />
-        </Modal>
+        {/* Common Market Modal */}
+        <MarketSearchModal 
+          isOpen={isMarketModalOpen} 
+          onClose={() => setIsMarketModalOpen(false)} 
+          onSelect={handleMarketSelect} 
+        />
       </>
     );
   }
