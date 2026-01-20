@@ -402,6 +402,7 @@ export const ReceiverManagement: React.FC = () => {
             {/* 사용여부 */}
             <FormRow label="사용여부">
               <StatusRadioGroup 
+                label=""
                 value={formData.status} 
                 onChange={(val) => setFormData({...formData, status: val as any})} 
               />

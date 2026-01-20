@@ -372,6 +372,19 @@ export const AddressSearchModal: React.FC<AddressSearchModalProps> = ({ isOpen, 
         // autoClose: false로 설정하여 라이브러리가 완료 후 스스로 postMessage를 보내 닫으려는 동작 방지
         autoClose: false,
         animation: false, // 임베드 모드에서는 애니메이션 끔
+        
+        // [중요] 다크 테마 적용
+        theme: {
+            bgColor: "#1E293B", // bg-slate-800
+            searchBgColor: "#0F172A", // bg-slate-900 (Input background)
+            contentBgColor: "#1E293B", // bg-slate-800 (List background)
+            pageBgColor: "#1E293B", // bg-slate-800 (Page background)
+            textColor: "#E2E8F0", // text-slate-200
+            queryTextColor: "#F1F5F9", // text-slate-100
+            postcodeTextColor: "#60A5FA", // text-blue-400
+            emphTextColor: "#60A5FA", // text-blue-400
+            outlineColor: "#334155" // border-slate-700
+        }
       }).embed(container);
     } catch (error) {
       console.error("Daum Postcode Embed Error:", error);

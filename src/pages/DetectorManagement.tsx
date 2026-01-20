@@ -322,7 +322,7 @@ export const DetectorManagement: React.FC = () => {
     { header: '수신기 MAC', accessor: 'receiverMac', width: '120px' },
     { header: '중계기 ID', accessor: 'repeaterId', width: '100px' },
     { header: '감지기 ID', accessor: 'detectorId', width: '100px' },
-    { header: '설치시장', accessor: 'marketName' },
+    { header: '설치시장', accessor: 'marketName', width: '250px' },
     { 
       header: '설치상가', 
       accessor: (item) => {
@@ -330,7 +330,7 @@ export const DetectorManagement: React.FC = () => {
         if (item.stores.length === 1) return item.stores[0].name;
         return `${item.stores[0].name} 외 ${item.stores.length - 1}건`;
       }, 
-      width: '150px' 
+      width: '250px' 
     },
     { header: 'CCTV URL', accessor: 'cctvUrl', width: '150px' },
     { header: '사용여부', accessor: (item) => <StatusBadge status={item.status} />, width: '100px' },
