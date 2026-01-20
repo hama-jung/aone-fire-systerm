@@ -248,22 +248,22 @@ export const SmsTransmission: React.FC = () => {
           className="w-4 h-4 accent-blue-500"
         />
       ), 
-      width: '60px' 
+      width: '80px' // Increased width to prevent wrapping
     },
-    { header: '사용자ID', accessor: 'userId', width: '120px' },
-    { header: '성명', accessor: 'name', width: '100px' },
-    { header: '소속', accessor: 'department' },
-    { header: '연락처', accessor: 'phone', width: '140px' },
+    { header: '사용자ID', accessor: 'userId', width: '140px' },
+    { header: '성명', accessor: 'name', width: '120px' },
+    { header: '소속', accessor: 'department' }, // Flexible width
+    { header: '연락처', accessor: 'phone', width: '160px' }, // Increased width
   ];
 
   const historyColumns: Column<SmsHistoryItem>[] = [
-    { header: '번호', accessor: 'id', width: '70px' }, // width 조정
+    { header: '번호', accessor: 'id', width: '70px' },
     { header: '전송일', accessor: (item) => formatDate(item.date), width: '160px' },
     { header: '전송 건수', accessor: 'count', width: '100px' },
     { header: '성공', accessor: 'success', width: '80px' },
     { header: '실패', accessor: 'fail', width: '80px' },
-    { header: '수신거부', accessor: 'refusal', width: '90px' }, // 줄바꿈 방지 width 확보
-    { header: '문자 제목/내용', accessor: 'subject' },
+    { header: '수신거부', accessor: 'refusal', width: '120px' }, // Increased width
+    { header: '문자 제목', accessor: 'subject' }, // Changed header title
   ];
 
   // --- Render Views ---
