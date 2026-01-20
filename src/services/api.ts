@@ -1,5 +1,5 @@
 import { supabase } from '../lib/supabaseClient';
-import { User, RoleItem, Market, Distributor, Store, WorkLog, Receiver, Repeater, Detector, Transmitter, MenuItemDB } from '../types';
+import { User, RoleItem, Market, Distributor, Store, WorkLog, Receiver, Repeater, Detector, Transmitter, Alarm, MenuItemDB } from '../types';
 
 /**
  * [Supabase 연동 완료]
@@ -747,6 +747,48 @@ export const TransmitterAPI = {
 
   delete: async (id: number) => {
     const { error } = await supabase.from('transmitters').delete().eq('id', id);
+    if (error) handleError(error);
+    return true;
+  }
+};
+
+export const AlarmAPI = {
+  getList: async (params?: { marketName?: string, receiverMac?: string, usageStatus?: string }) => {
+    let query = supabase
+      .from('alarms')
+      .select('*, markets!inner(name)')
+      .order('id', { ascending: false });
+
+    if (params?.marketName) query = query.ilike('markets.name', `%${params.marketName}%`);
+    if (params?.receiverMac) query = query.ilike('receiverMac', `%${params.receiverMac}%`);
+    if (params?.usageStatus && params.usageStatus !== '전체') query = query.eq('usageStatus', params.usageStatus);
+
+    const { data, error } = await query;
+    if (error) handleError(error);
+
+    return (data || []).map((item: any) => ({
+      ...item,
+      marketName: item.markets?.name
+    }));
+  },
+
+  save: async (alarm: Alarm) => {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { id, marketName, ...payload } = alarm;
+
+    if (alarm.id === 0) {
+      const { data, error } = await supabase.from('alarms').insert(payload).select().single();
+      if (error) handleError(error);
+      return data;
+    } else {
+      const { data, error } = await supabase.from('alarms').update(payload).eq('id', alarm.id).select().single();
+      if (error) handleError(error);
+      return data;
+    }
+  },
+
+  delete: async (id: number) => {
+    const { error } = await supabase.from('alarms').delete().eq('id', id);
     if (error) handleError(error);
     return true;
   }

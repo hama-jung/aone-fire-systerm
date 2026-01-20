@@ -144,6 +144,17 @@ export interface Transmitter {
   memo?: string;
 }
 
+export interface Alarm {
+  id: number;
+  marketId: number;
+  marketName?: string; // Join
+  receiverMac: string;
+  repeaterId: string; // '01' ~ '20'
+  alarmId: string; // '01' ~ '20'
+  usageStatus: '사용' | '미사용';
+  memo?: string;
+}
+
 export interface Distributor {
   id: number;
   name: string;           // 총판명
