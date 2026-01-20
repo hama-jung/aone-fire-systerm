@@ -26,8 +26,8 @@ const menuItems: MenuItem[] = [
       { label: '시장 관리', path: '/markets' },
       { label: '상가 관리', path: '/stores' },
       { label: '문자 전송', path: '/sms' },
+      { label: '작업일지', path: '/work-logs' },
       { label: '롤 관리', path: '/roles' },
-      { label: '접속 로그', path: '/access-logs' },
     ]
   },
   { 

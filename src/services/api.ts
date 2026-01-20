@@ -1,5 +1,5 @@
 import { supabase } from '../lib/supabaseClient';
-import { User, RoleItem, Market, Distributor, Store } from '../types';
+import { User, RoleItem, Market, Distributor, Store, WorkLog } from '../types';
 
 /**
  * [Supabase 연동 완료]
@@ -374,6 +374,71 @@ export const DistributorAPI = {
     const { error } = await supabase.from('distributors').delete().eq('id', id);
     if (error) handleError(error);
     return true;
+  }
+};
+
+export const WorkLogAPI = {
+  getList: async (params?: { startDate?: string, endDate?: string, marketName?: string }) => {
+    let query = supabase
+      .from('work_logs')
+      .select('*, markets!inner(name)')
+      .order('workDate', { ascending: false });
+
+    if (params?.startDate) query = query.gte('workDate', params.startDate);
+    if (params?.endDate) query = query.lte('workDate', params.endDate);
+    if (params?.marketName) query = query.ilike('markets.name', `%${params.marketName}%`);
+
+    const { data, error } = await query;
+    if (error) handleError(error);
+
+    return (data || []).map((item: any) => ({
+      ...item,
+      marketName: item.markets?.name
+    }));
+  },
+
+  save: async (log: WorkLog) => {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { id, marketName, ...logData } = log;
+    
+    if (log.id === 0) {
+      const { data, error } = await supabase.from('work_logs').insert(logData).select().single();
+      if (error) handleError(error);
+      return data;
+    } else {
+      const { data, error } = await supabase.from('work_logs').update(logData).eq('id', log.id).select().single();
+      if (error) handleError(error);
+      return data;
+    }
+  },
+
+  delete: async (id: number) => {
+    const { error } = await supabase.from('work_logs').delete().eq('id', id);
+    if (error) handleError(error);
+    return true;
+  },
+
+  uploadAttachment: async (file: File): Promise<string> => {
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
+    const filePath = `work-logs/${fileName}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from('work-log-images')
+      .upload(filePath, file);
+
+    if (uploadError) {
+      if (uploadError.message.includes('Bucket not found')) {
+          throw new Error("스토리지 버킷(work-log-images)이 없습니다. supabase_worklogs.sql을 실행해주세요.");
+      }
+      throw new Error(`이미지 업로드 실패: ${uploadError.message}`);
+    }
+
+    const { data } = supabase.storage
+      .from('work-log-images')
+      .getPublicUrl(filePath);
+
+    return data.publicUrl;
   }
 };
 

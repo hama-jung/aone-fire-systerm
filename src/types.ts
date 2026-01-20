@@ -105,6 +105,16 @@ export interface Distributor {
   managedMarkets: string[]; // 관리 시장 목록 (이름)
 }
 
+export interface WorkLog {
+  id: number;
+  marketId: number;
+  marketName?: string; // Join
+  workDate: string; // YYYY-MM-DD
+  content: string;
+  attachment?: string; // 이미지 URL
+  created_at?: string;
+}
+
 export interface FireEvent {
   id: number;
   marketName: string;
