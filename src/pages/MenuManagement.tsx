@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { PageHeader, DataTable, Column, ActionBar, Modal, FormRow, InputGroup, SelectGroup, Button, UI_STYLES } from '../components/CommonUI';
+import { PageHeader, DataTable, Column, Modal, FormRow, InputGroup, SelectGroup, Button, UI_STYLES } from '../components/CommonUI';
 import { MenuItemDB } from '../types';
 import { MenuAPI } from '../services/api';
 import { getIcon, ICON_KEYS } from '../utils/iconMapper';
@@ -23,7 +23,6 @@ export const MenuManagement: React.FC = () => {
       const data = await MenuAPI.getAll();
       setMenus(data);
       
-      // 상위 메뉴 옵션 생성 (자기 자신 제외 로직은 모달 열 때 처리)
       const roots = data.filter(m => !m.parentId).map(m => ({ value: m.id, label: m.label }));
       setParentOptions([{ value: '', label: '최상위 메뉴 (Root)' }, ...roots]);
 
@@ -55,20 +54,6 @@ export const MenuManagement: React.FC = () => {
   };
 
   // --- CRUD Handlers ---
-  const handleRegister = () => {
-    setSelectedMenu(null);
-    setFormData({
-      parentId: undefined,
-      label: '',
-      path: '',
-      icon: '',
-      sortOrder: (menus.length + 1) * 10,
-      isVisiblePc: true,
-      isVisibleMobile: true
-    });
-    setIsModalOpen(true);
-  };
-
   const handleEdit = (menu: MenuItemDB) => {
     setSelectedMenu(menu);
     setFormData({ ...menu });
@@ -95,7 +80,6 @@ export const MenuManagement: React.FC = () => {
       const newMenu = {
         ...formData as MenuItemDB,
         id: selectedMenu?.id || 0,
-        // parentId가 빈 문자열이면 undefined로 처리
         parentId: formData.parentId ? Number(formData.parentId) : undefined 
       };
 
@@ -182,11 +166,11 @@ export const MenuManagement: React.FC = () => {
       <PageHeader title="메뉴 관리" />
       <div className="mb-4 p-4 bg-blue-900/20 border border-blue-800 rounded-lg text-sm text-blue-200 flex justify-between items-center">
         <div>
-          💡 <strong>Tip:</strong> 메뉴 구조가 변경되어도 여기서 바로 추가/수정할 수 있습니다.
+          💡 <strong>Tip:</strong> PC와 모바일 환경에서 보여질 메뉴를 각각 설정할 수 있습니다.
           <br/>
-          (PC/모바일 노출 설정은 즉시 반영됩니다.)
+          (설정 변경 시 즉시 반영됩니다.)
         </div>
-        <ActionBar onRegister={handleRegister} />
+        {/* 신규 등록 버튼 제거됨 */}
       </div>
 
       {loading ? (
@@ -194,18 +178,21 @@ export const MenuManagement: React.FC = () => {
       ) : (
         <DataTable columns={columns} data={menus} />
       )}
+      
+      {/* 하단 여백 추가 */}
+      <div className="h-20"></div>
 
-      {/* Create/Edit Modal */}
+      {/* Edit Modal */}
       <Modal 
         isOpen={isModalOpen} 
         onClose={() => setIsModalOpen(false)} 
-        title={selectedMenu ? "메뉴 수정" : "메뉴 등록"} 
+        title="메뉴 수정"
         width="max-w-xl"
       >
          <form onSubmit={handleSave} className="flex flex-col gap-4">
             <FormRow label="상위 메뉴">
                <SelectGroup 
-                  options={parentOptions.filter(opt => Number(opt.value) !== selectedMenu?.id)} // Prevent self-parenting
+                  options={parentOptions.filter(opt => Number(opt.value) !== selectedMenu?.id)} 
                   value={formData.parentId || ''}
                   onChange={(e) => setFormData({...formData, parentId: Number(e.target.value) || undefined})}
                />

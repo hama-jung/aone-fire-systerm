@@ -3,7 +3,7 @@ import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { 
   ChevronDown, ChevronRight, LogOut, Menu, Bell, Key, HelpCircle, User
 } from 'lucide-react';
-import { MenuItem, MenuItemDB } from '../types';
+import { MenuItemDB } from '../types';
 import { Modal, InputGroup, Button } from './CommonUI';
 import { AuthAPI, MenuAPI } from '../services/api';
 import { getIcon } from '../utils/iconMapper';
@@ -159,8 +159,6 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
         ...item,
         children: item.children ? getVisibleMenus(item.children) : undefined
       }))
-      // 자식 메뉴가 모두 숨겨져서 비어있게 된 부모 메뉴 처리 여부는 기획에 따라 다름.
-      // 여기서는 단순히 PC/Mobile 설정값만 따름.
   };
 
   const visibleMenuItems = getVisibleMenus(menuItems);
@@ -258,8 +256,8 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
           </div>
         </header>
 
-        {/* Content Body (Dark bg) - Responsive Padding */}
-        <main className="flex-1 overflow-auto py-5 px-4 md:px-[60px] bg-[#0f172a] custom-scrollbar">
+        {/* Content Body (Dark bg) - Added pb-24 for extra bottom space */}
+        <main className="flex-1 overflow-auto py-5 px-4 md:px-[60px] pb-24 bg-[#0f172a] custom-scrollbar">
           <div className="w-full h-full flex flex-col max-w-[1920px] mx-auto">
             {children}
           </div>
@@ -274,7 +272,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
         />
       )}
 
-      {/* Password Change Modal (Reused from previous) */}
+      {/* Password Change Modal */}
       {isPwModalOpen && (
         <Modal 
           isOpen={isPwModalOpen} 
