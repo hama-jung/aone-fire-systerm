@@ -210,7 +210,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
       {/* Main Content */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Top Header */}
-        <header className="h-14 bg-[#2f3b52] text-white shadow-md flex items-center justify-between px-4 lg:px-6 z-40 border-b border-[#1e293b]">
+        <header className="h-14 bg-[#2f3b52] text-white shadow-md flex items-center justify-between px-4 lg:px-6 z-40 border-b border-[#1e293b] flex-shrink-0">
           <div className="flex items-center gap-4">
             <button 
               className="lg:hidden p-2 text-gray-300 hover:bg-[#3e4b61] rounded-md"
@@ -270,9 +270,10 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
           </div>
         </header>
 
-        {/* Content Body (Dark bg) - Added pb-24 for extra bottom space */}
-        <main className="flex-1 overflow-auto py-5 px-4 md:px-[60px] pb-24 bg-[#0f172a] custom-scrollbar">
-          <div className="w-full h-full flex flex-col max-w-[1920px] mx-auto">
+        {/* Content Body (Dark bg) */}
+        {/* Fix: Moved padding inside and used min-h-full instead of h-full to allow content to grow */}
+        <main className="flex-1 overflow-y-auto bg-[#0f172a] custom-scrollbar relative">
+          <div className="w-full min-h-full flex flex-col max-w-[1920px] mx-auto py-6 px-4 md:px-[60px] pb-32">
             {children}
           </div>
         </main>
