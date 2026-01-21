@@ -1,5 +1,5 @@
 import { supabase } from '../lib/supabaseClient';
-import { User, RoleItem, Market, Distributor, Store, WorkLog, Receiver, Repeater, Detector, Transmitter, Alarm, MenuItemDB, CommonCode, FireLog, DeviceStatusLog, DataReceptionLog, RawUartLog } from '../types';
+import { User, RoleItem, Market, Distributor, Store, WorkLog, Receiver, Repeater, Detector, Transmitter, Alarm, MenuItemDB, CommonCode, FireLog, DeviceStatusLog, DataReceptionLog, RawUartLog, FireHistoryItem } from '../types';
 
 /**
  * [Supabase 연동 완료]
@@ -1268,5 +1268,37 @@ export const DashboardAPI = {
         { id: 3, x: 40, y: 70, name: '전라북도', status: 'normal' },
       ]
     };
+  }
+};
+
+// [Updated] FireHistoryAPI - Now using Supabase
+export const FireHistoryAPI = {
+  getList: async () => {
+    const { data, error } = await supabase
+      .from('fire_history')
+      .select('*')
+      .order('registeredAt', { ascending: false });
+
+    if (error) handleError(error);
+    return data as FireHistoryItem[];
+  },
+
+  save: async (id: number, type: '화재' | '오탐', memo?: string) => {
+    const { error } = await supabase
+      .from('fire_history')
+      .update({ 
+        falseAlarmStatus: type,
+        note: memo 
+      })
+      .eq('id', id);
+    
+    if (error) handleError(error);
+    return true;
+  },
+
+  delete: async (id: number) => {
+    const { error } = await supabase.from('fire_history').delete().eq('id', id);
+    if (error) handleError(error);
+    return true;
   }
 };

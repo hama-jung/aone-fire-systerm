@@ -267,3 +267,19 @@ export interface RawUartLog {
   rawData: string;
   created_at: string;
 }
+
+// 화재 이력 관리 아이템 (Mock 데이터용)
+export interface FireHistoryItem {
+  id: number;
+  marketName: string;
+  receiverMac: string;
+  receiverStatus: string; // 공통코드 (예: '10', '35')
+  repeaterId: string;
+  repeaterStatus: string; // 공통코드 (예: '35', '49')
+  detectorInfoChamber?: string; // 감지기ID_챔버
+  detectorInfoTemp?: string; // 감지기ID_온도
+  registrar: string; // 등록자
+  registeredAt: string; // 등록일
+  falseAlarmStatus: string; // 오탐여부 (예: '등록', '화재', '오탐')
+  note?: string; // 오탐 등록 비고
+}
