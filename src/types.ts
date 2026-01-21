@@ -283,3 +283,18 @@ export interface FireHistoryItem {
   falseAlarmStatus: string; // 오탐여부 (예: '등록', '화재', '오탐')
   note?: string; // 오탐 등록 비고
 }
+
+// 기기 상태 관리 아이템
+export interface DeviceStatusItem {
+  id: number;
+  marketName: string;
+  receiverMac: string;
+  repeaterId: string;
+  deviceType: string; // '수신기', '감지기' 등
+  deviceId: string;
+  deviceStatus: string; // '정상', '에러' 등
+  errorCode: string; // 공통코드 (Hidden in UI)
+  registeredAt: string;
+  processStatus: '처리' | '미처리';
+  note?: string;
+}

@@ -18,6 +18,7 @@ import { TransmitterManagement } from './pages/TransmitterManagement';
 import { AlarmManagement } from './pages/AlarmManagement';
 import { CommonCodeManagement } from './pages/CommonCodeManagement';
 import { FireHistoryManagement } from './pages/FireHistoryManagement';
+import { DeviceStatusManagement } from './pages/DeviceStatusManagement';
 
 // Placeholder components for routes not fully implemented
 const PlaceholderPage: React.FC<{ title: string }> = ({ title }) => (
@@ -55,11 +56,9 @@ const App: React.FC = () => {
               <Route path="/alarms" element={<AlarmManagement />} />
               <Route path="/common-codes" element={<CommonCodeManagement />} />
               
-              {/* New Route */}
+              {/* Data Management Routes */}
               <Route path="/fire-history" element={<FireHistoryManagement />} />
-              
-              {/* Placeholders for other menu items */}
-              <Route path="/device-status" element={<PlaceholderPage title="기기 상태 관리" />} />
+              <Route path="/device-status" element={<DeviceStatusManagement />} />
               
               <Route path="*" element={<Navigate to="/dashboard" replace />} />
             </Routes>

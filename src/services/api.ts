@@ -1,5 +1,5 @@
 import { supabase } from '../lib/supabaseClient';
-import { User, RoleItem, Market, Distributor, Store, WorkLog, Receiver, Repeater, Detector, Transmitter, Alarm, MenuItemDB, CommonCode, FireLog, DeviceStatusLog, DataReceptionLog, RawUartLog, FireHistoryItem } from '../types';
+import { User, RoleItem, Market, Distributor, Store, WorkLog, Receiver, Repeater, Detector, Transmitter, Alarm, MenuItemDB, CommonCode, FireLog, DeviceStatusLog, DataReceptionLog, RawUartLog, FireHistoryItem, DeviceStatusItem } from '../types';
 
 /**
  * [Supabase 연동 완료]
@@ -419,6 +419,9 @@ export const UserAPI = {
   }
 };
 
+// ... (Other APIs remain unchanged: MarketAPI, DistributorAPI, StoreAPI, ReceiverAPI, RepeaterAPI, DetectorAPI, TransmitterAPI, AlarmAPI, WorkLogAPI, DashboardAPI, FireHistoryAPI) ...
+
+// ... (Export APIs)
 export const MarketAPI = {
   // ... existing MarketAPI methods ...
   getList: async (params?: { name?: string, address?: string, managerName?: string }) => {
@@ -1271,7 +1274,6 @@ export const DashboardAPI = {
   }
 };
 
-// [Updated] FireHistoryAPI - Now using Supabase and Filtering
 export const FireHistoryAPI = {
   getList: async (params?: { startDate?: string, endDate?: string, marketName?: string, status?: string }) => {
     let query = supabase
@@ -1293,8 +1295,6 @@ export const FireHistoryAPI = {
             query = query.ilike('marketName', `%${params.marketName}%`);
         }
         if (params.status && params.status !== 'all') {
-            // UI 상태값 ('fire', 'false')을 DB 저장값 ('화재', '오탐')으로 매핑
-            // (참고: DB에는 '등록' 상태도 있을 수 있음)
             const statusMap: Record<string, string> = {
                 'fire': '화재',
                 'false': '오탐'
@@ -1325,6 +1325,61 @@ export const FireHistoryAPI = {
 
   delete: async (id: number) => {
     const { error } = await supabase.from('fire_history').delete().eq('id', id);
+    if (error) handleError(error);
+    return true;
+  }
+};
+
+// [NEW] DeviceStatusAPI
+export const DeviceStatusAPI = {
+  getList: async (params?: { startDate?: string, endDate?: string, marketName?: string, status?: string }) => {
+    let query = supabase
+      .from('device_status')
+      .select('*')
+      .order('registeredAt', { ascending: false });
+
+    if (params) {
+        if (params.startDate) {
+            query = query.gte('registeredAt', `${params.startDate}T00:00:00`);
+        }
+        if (params.endDate) {
+            query = query.lte('registeredAt', `${params.endDate}T23:59:59.999`);
+        }
+        if (params.marketName) {
+            query = query.ilike('marketName', `%${params.marketName}%`);
+        }
+        if (params.status && params.status !== 'all') {
+            // 'all', 'processed' ('처리'), 'unprocessed' ('미처리')
+            const statusMap: Record<string, string> = {
+                'processed': '처리',
+                'unprocessed': '미처리'
+            };
+            if (statusMap[params.status]) {
+                query = query.eq('processStatus', statusMap[params.status]);
+            }
+        }
+    }
+
+    const { data, error } = await query;
+    if (error) handleError(error);
+    return data as DeviceStatusItem[];
+  },
+
+  save: async (id: number, status: '처리' | '미처리', note?: string) => {
+    const { error } = await supabase
+      .from('device_status')
+      .update({ 
+        processStatus: status,
+        note: note 
+      })
+      .eq('id', id);
+    
+    if (error) handleError(error);
+    return true;
+  },
+
+  delete: async (id: number) => {
+    const { error } = await supabase.from('device_status').delete().eq('id', id);
     if (error) handleError(error);
     return true;
   }
