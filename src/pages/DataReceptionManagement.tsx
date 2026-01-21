@@ -154,17 +154,21 @@ export const DataReceptionManagement: React.FC = () => {
     },
     { header: 'No', accessor: (_, idx) => idx + 1, width: '60px' },
     { header: '설치시장', accessor: 'marketName', width: '120px' },
-    { header: '로그유형', accessor: 'logType', width: '80px' },
+    { header: '로그유형', accessor: 'logType', width: '100px' }, // Widened
     { header: '수신기', accessor: 'receiverId', width: '80px' },
     { header: '중계기', accessor: 'repeaterId', width: '80px' },
     { header: '수신데이터', accessor: 'receivedData', width: '300px' }, // Long string
-    { header: '감지기통신상태', accessor: 'commStatus', width: '200px' },
-    { header: '감지기배터리상태', accessor: 'batteryStatus', width: '200px' },
-    { header: '감지기챔버상태', accessor: 'chamberStatus', width: '200px' },
+    { header: '감지기통신상태', accessor: 'commStatus', width: '180px' },
+    { header: '감지기배터리상태', accessor: 'batteryStatus', width: '180px' },
+    { header: '감지기챔버상태', accessor: 'chamberStatus', width: '180px' },
     { 
         header: '등록일', 
-        accessor: (item) => item.registeredAt ? item.registeredAt.replace('T', ' ').substring(0, 19) : '-', 
-        width: '180px' 
+        accessor: (item) => item.registeredAt ? (
+            <div className="whitespace-pre-wrap leading-tight text-xs">
+                {item.registeredAt.replace('T', ' ').substring(0, 19).replace(' ', '\n')}
+            </div>
+        ) : '-', 
+        width: '100px' // Reduced width for 2-line display
     },
   ];
 

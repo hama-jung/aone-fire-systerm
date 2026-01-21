@@ -24,7 +24,7 @@ create policy "Public Delete data_reception" on public.data_reception for delete
 -- 3. Insert Menu Item (Data Management > Data Reception Management)
 -- ParentID 4 is Data Management
 INSERT INTO public.menus ("parentId", label, path, "sortOrder", "isVisiblePc", "isVisibleMobile")
-VALUES (4, '데이터수신관리', '/data-reception', 30, true, true)
+VALUES (4, '데이터 수신 관리', '/data-reception', 30, true, true)
 ON CONFLICT DO NOTHING;
 
 -- 4. Initial Mock Data (Based on screenshot)
