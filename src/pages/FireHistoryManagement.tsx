@@ -3,8 +3,8 @@ import {
   PageHeader, SearchFilterBar, InputGroup, Button, DataTable, 
   Pagination, ActionBar, Column, Modal, UI_STYLES
 } from '../components/CommonUI';
-import { FireHistoryItem } from '../types';
-import { FireHistoryAPI } from '../services/api';
+import { FireHistoryItem, CommonCode } from '../types';
+import { FireHistoryAPI, CommonCodeAPI } from '../services/api';
 import { Search, FileSpreadsheet, Trash2 } from 'lucide-react';
 import { exportToExcel } from '../utils/excel';
 
@@ -14,6 +14,9 @@ export const FireHistoryManagement: React.FC = () => {
   const [historyList, setHistoryList] = useState<FireHistoryItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+
+  // 공통코드 매핑 상태 (DB에서 가져온 코드 -> 명칭)
+  const [codeMap, setCodeMap] = useState<Record<string, string>>({});
 
   // Search Filters
   // Default range: 1 month
@@ -38,43 +41,57 @@ export const FireHistoryManagement: React.FC = () => {
   const [modalMemo, setModalMemo] = useState('');
 
   // --- Helpers ---
-  // Common Code Mapping
+  
+  // 공통코드 매핑 함수 (DB 데이터를 사용)
   const getStatusName = (code: string) => {
-    const map: {[key: string]: string} = {
-        '10': '정상',
-        '35': '고장', // 통신이상 등
-        '49': '화재',
-        '14': '단선', 
-        '06': '작동'
-    };
-    return map[code] ? map[code] : code;
+    // 코드가 맵에 있으면 명칭 반환, 없으면 코드 그대로 반환
+    return codeMap[code] || code;
   };
 
-  const fetchHistory = async () => {
+  // 상태값에 따른 텍스트 색상 결정
+  const getStatusColor = (name: string) => {
+    if (name.includes('화재')) return 'text-red-400 font-bold';
+    if (name.includes('고장') || name.includes('단선') || name.includes('오류')) return 'text-orange-400 font-bold';
+    if (name.includes('해소') || name.includes('정상') || name.includes('복구')) return 'text-blue-400';
+    return 'text-slate-300';
+  };
+
+  // 초기 데이터 로드 (이력 + 공통코드 병렬 조회)
+  const initData = async () => {
     setLoading(true);
     try {
-      // In a real scenario, pass filters to getList(params)
-      // For now, filtering client-side or assume getList fetches all
-      const data = await FireHistoryAPI.getList();
-      setHistoryList(data);
-      setCurrentPage(1);
+        const [codes, history] = await Promise.all([
+            CommonCodeAPI.getList(), // 전체 공통코드 조회
+            FireHistoryAPI.getList() // 화재 이력 조회
+        ]);
+
+        // 코드 맵 생성 (code -> name)
+        const map: Record<string, string> = {};
+        codes.forEach((c: CommonCode) => {
+            map[c.code] = c.name;
+        });
+        setCodeMap(map);
+        
+        setHistoryList(history);
+        setCurrentPage(1);
+
     } catch (e: any) {
-      if (e.message && e.message.includes('Could not find the table')) {
-         console.warn('DB 테이블(fire_history)이 존재하지 않습니다. SQL 스크립트를 실행해주세요.');
-      } else {
-         alert('데이터 로드 실패: ' + e.message);
-      }
+        if (e.message && e.message.includes('Could not find the table')) {
+            console.warn('DB 테이블 확인이 필요합니다.');
+        } else {
+            alert('데이터 로드 실패: ' + e.message);
+        }
     } finally {
-      setLoading(false);
+        setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchHistory();
+    initData();
   }, []);
 
   // --- Handlers ---
-  const handleSearch = () => {
+  const handleSearch = async () => {
     const start = new Date(startDate);
     const end = new Date(endDate);
     const diffTime = Math.abs(end.getTime() - start.getTime());
@@ -85,7 +102,16 @@ export const FireHistoryManagement: React.FC = () => {
         return;
     }
     
-    fetchHistory();
+    // 단순 목록 갱신 (실제 검색 필터링은 API단에서 처리 필요하나 여기선 예시로 getList 호출)
+    setLoading(true);
+    try {
+        const data = await FireHistoryAPI.getList();
+        setHistoryList(data);
+    } catch(e) {
+        console.error(e);
+    } finally {
+        setLoading(false);
+    }
   };
 
   const handleDelete = async () => {
@@ -98,7 +124,9 @@ export const FireHistoryManagement: React.FC = () => {
             await Promise.all(Array.from(selectedIds).map(id => FireHistoryAPI.delete(id)));
             alert("삭제되었습니다.");
             setSelectedIds(new Set());
-            fetchHistory();
+            // 새로고침 (데이터만)
+            const data = await FireHistoryAPI.getList();
+            setHistoryList(data);
         } catch (e: any) {
             alert(`삭제 실패: ${e.message}`);
         }
@@ -106,7 +134,13 @@ export const FireHistoryManagement: React.FC = () => {
   };
 
   const handleExcel = () => {
-    exportToExcel(historyList, '화재이력관리_목록');
+    // 엑셀 다운로드 시 코드가 아닌 명칭으로 변환하여 내보내기
+    const excelData = historyList.map(item => ({
+        ...item,
+        receiverStatusName: getStatusName(item.receiverStatus),
+        repeaterStatusName: getStatusName(item.repeaterStatus)
+    }));
+    exportToExcel(excelData, '화재이력관리_목록');
   };
 
   // Checkbox logic
@@ -140,7 +174,9 @@ export const FireHistoryManagement: React.FC = () => {
             await FireHistoryAPI.save(selectedItem.id, modalType, modalMemo);
             alert("저장되었습니다.");
             setIsModalOpen(false);
-            fetchHistory(); // Refresh list
+            // 목록 갱신
+            const data = await FireHistoryAPI.getList();
+            setHistoryList(data);
         } catch (e: any) {
             alert(`저장 실패: ${e.message}`);
         }
@@ -166,12 +202,18 @@ export const FireHistoryManagement: React.FC = () => {
     { header: '수신기 MAC', accessor: 'receiverMac' },
     { 
         header: '수신기상태', 
-        accessor: (item) => getStatusName(item.receiverStatus) 
+        accessor: (item) => {
+            const name = getStatusName(item.receiverStatus);
+            return <span className={getStatusColor(name)}>{name}</span>;
+        }
     },
     { header: '중계기 ID', accessor: 'repeaterId' },
     { 
         header: '중계기상태', 
-        accessor: (item) => getStatusName(item.repeaterStatus)
+        accessor: (item) => {
+            const name = getStatusName(item.repeaterStatus);
+            return <span className={getStatusColor(name)}>{name}</span>;
+        }
     },
     { 
         header: '감지기ID_챔버', 
@@ -211,9 +253,9 @@ export const FireHistoryManagement: React.FC = () => {
     <>
       <PageHeader title="화재이력관리" />
       
-      {/* Mock Data Disclaimer */}
+      {/* Disclaimer */}
       <div className="bg-orange-900/20 border border-orange-800 text-orange-200 px-4 py-2 rounded mb-6 text-sm flex items-center">
-        ⚠️ 가상의 데이터입니다. 실제 데이터를 받은 후 삭제예정입니다.
+        ⚠️ 공통코드 관리 메뉴에 등록된 코드명(예: 화재알람, 화재해소)과 연동되어 표시됩니다.
       </div>
 
       {/* Search Filter */}
