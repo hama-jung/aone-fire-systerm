@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { 
   PageHeader, SearchFilterBar, InputGroup, SelectGroup,
   Button, DataTable, Pagination, ActionBar, FormSection, FormRow, Column, Modal, UI_STYLES, AddressInput,
-  formatPhoneNumber // Added import
+  formatPhoneNumber, handlePhoneKeyDown // Added import
 } from '../components/CommonUI';
 import { Store, Market } from '../types';
 import { StoreAPI, MarketAPI } from '../services/api';
@@ -421,6 +421,8 @@ export const StoreManagement: React.FC = () => {
                <InputGroup 
                  value={formData.managerPhone || ''} 
                  onChange={(e) => setFormData({...formData, managerPhone: e.target.value.replace(/[^0-9]/g, '')})} 
+                 onKeyDown={handlePhoneKeyDown} // [NEW] 숫자 외 키 차단
+                 inputMode="numeric" // [NEW] 모바일 키패드
                  placeholder="숫자만 입력하세요"
                  maxLength={11}
                />

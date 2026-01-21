@@ -30,6 +30,25 @@ export const formatPhoneNumber = (value: string | undefined) => {
   return value;
 };
 
+// [NEW] 숫자 외의 키 입력 차단 핸들러
+export const handlePhoneKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+  const allowedKeys = [
+    'Backspace', 'Delete', 'Tab', 'Escape', 'Enter',
+    'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'
+  ];
+  
+  // 기능키 허용
+  if (allowedKeys.includes(e.key)) return;
+  
+  // Ctrl/Cmd 조합키 허용 (복사, 붙여넣기 등)
+  if ((e.ctrlKey || e.metaKey) && ['a', 'c', 'v', 'x', 'z'].includes(e.key.toLowerCase())) return;
+  
+  // 숫자(0-9)가 아니면 차단
+  if (!/^[0-9]$/.test(e.key)) {
+    e.preventDefault();
+  }
+};
+
 // --- Colors & Styles Constants (Dark Mode) ---
 export const UI_STYLES = {
   primary: 'bg-blue-600 hover:bg-blue-500 text-white shadow-sm border border-transparent', 

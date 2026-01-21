@@ -3,7 +3,7 @@ import {
   PageHeader, SearchFilterBar, InputGroup, SelectGroup, Button, DataTable, 
   Pagination, FormSection, FormRow, Column, UI_STYLES,
   StatusBadge, StatusRadioGroup, MarketSearchModal,
-  formatPhoneNumber // Added import
+  formatPhoneNumber, handlePhoneKeyDown // Added import
 } from '../components/CommonUI';
 import { Receiver, Market } from '../types';
 import { ReceiverAPI } from '../services/api';
@@ -334,6 +334,8 @@ export const ReceiverManagement: React.FC = () => {
               <InputGroup 
                 value={formData.emergencyPhone || ''} 
                 onChange={(e) => setFormData({...formData, emergencyPhone: e.target.value.replace(/[^0-9]/g, '')})}
+                onKeyDown={handlePhoneKeyDown} // [NEW] 숫자 외 키 차단
+                inputMode="numeric" // [NEW] 모바일 키패드
                 placeholder="숫자만 입력하세요"
                 maxLength={11}
               />

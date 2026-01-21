@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   PageHeader, SearchFilterBar, InputGroup, SelectGroup, 
   Button, DataTable, Pagination, ActionBar, FormSection, FormRow, Column, Modal, UI_STYLES,
-  formatPhoneNumber // Added import
+  formatPhoneNumber, handlePhoneKeyDown // Added import
 } from '../components/CommonUI';
 import { User, RoleItem } from '../types';
 import { UserAPI, RoleAPI, CommonAPI } from '../services/api';
@@ -419,6 +419,8 @@ export const UserManagement: React.FC = () => {
                 name="phone" 
                 value={phone}
                 onChange={(e) => setPhone(e.target.value.replace(/[^0-9]/g, ''))} // 숫자만 허용
+                onKeyDown={handlePhoneKeyDown} // [NEW] 숫자 외 키 차단
+                inputMode="numeric" // [NEW] 모바일 키패드
                 placeholder="숫자만 입력하세요" 
                 required 
                 maxLength={11}

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { 
   PageHeader, SearchFilterBar, InputGroup, SelectGroup,
   Button, DataTable, Pagination, ActionBar, FormSection, FormRow, Column, AddressInput, UI_STYLES,
-  StatusBadge, formatPhoneNumber // Added import
+  StatusBadge, formatPhoneNumber, handlePhoneKeyDown // Added import
 } from '../components/CommonUI';
 import { Market, Distributor } from '../types';
 import { MarketAPI, DistributorAPI } from '../services/api';
@@ -359,6 +359,8 @@ export const MarketManagement: React.FC = () => {
                 <InputGroup 
                   value={formData.managerPhone || ''} 
                   onChange={(e) => setFormData({...formData, managerPhone: e.target.value.replace(/[^0-9]/g, '')})} 
+                  onKeyDown={handlePhoneKeyDown} // [NEW] 숫자 외 키 차단
+                  inputMode="numeric" // [NEW] 모바일 키패드
                   placeholder="숫자만 입력하세요"
                   maxLength={11}
                 />
@@ -417,6 +419,8 @@ export const MarketManagement: React.FC = () => {
                              placeholder="휴대폰 번호 입력" 
                              value={tempSmsFire}
                              onChange={(e) => setTempSmsFire(e.target.value.replace(/[^0-9]/g, ''))} // Numeric
+                             onKeyDown={handlePhoneKeyDown} // [NEW]
+                             inputMode="numeric" // [NEW]
                            />
                            <Button type="button" variant="secondary" onClick={() => addSms('fire')} className="whitespace-nowrap">추가</Button>
                         </div>
@@ -441,6 +445,8 @@ export const MarketManagement: React.FC = () => {
                              placeholder="휴대폰 번호 입력" 
                              value={tempSmsFault}
                              onChange={(e) => setTempSmsFault(e.target.value.replace(/[^0-9]/g, ''))} // Numeric
+                             onKeyDown={handlePhoneKeyDown} // [NEW]
+                             inputMode="numeric" // [NEW]
                            />
                            <Button type="button" variant="secondary" onClick={() => addSms('fault')} className="whitespace-nowrap">추가</Button>
                         </div>

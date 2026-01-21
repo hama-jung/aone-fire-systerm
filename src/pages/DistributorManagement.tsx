@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   PageHeader, SearchFilterBar, InputGroup, SelectGroup, AddressInput,
   Button, DataTable, Pagination, ActionBar, FormSection, FormRow, Column, UI_STYLES,
-  formatPhoneNumber // Added import
+  formatPhoneNumber, handlePhoneKeyDown // Added import
 } from '../components/CommonUI';
 import { Distributor } from '../types';
 import { DistributorAPI } from '../services/api';
@@ -201,10 +201,11 @@ export const DistributorManagement: React.FC = () => {
               <div className="col-span-1 md:col-span-2">
                   <AddressInput 
                      label="주소"
+                     required
                      address={formData.address || ''}
                      addressDetail={formData.addressDetail || ''}
-                     onAddressChange={(val) => setFormData(prev => ({...prev, address: val}))}
-                     onDetailChange={(val) => setFormData(prev => ({...prev, addressDetail: val}))}
+                     onAddressChange={(val) => setFormData({...formData, address: val})}
+                     onDetailChange={(val) => setFormData({...formData, addressDetail: val})}
                      onCoordinateChange={(lat, lng) => setFormData(prev => ({...prev, latitude: lat, longitude: lng}))}
                   />
               </div>
@@ -238,6 +239,8 @@ export const DistributorManagement: React.FC = () => {
                   <InputGroup 
                       value={formData.managerPhone || ''} 
                       onChange={e => setFormData({...formData, managerPhone: e.target.value.replace(/[^0-9]/g, '')})}
+                      onKeyDown={handlePhoneKeyDown} // [NEW] 숫자 외 키 차단
+                      inputMode="numeric" // [NEW] 모바일 키패드
                       placeholder="숫자만 입력하세요"
                       maxLength={11}
                   />
