@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { 
   PageHeader, SearchFilterBar, InputGroup, SelectGroup,
   Button, DataTable, Pagination, ActionBar, FormSection, FormRow, Column, AddressInput, UI_STYLES,
-  StatusBadge
+  StatusBadge, formatPhoneNumber // Added import
 } from '../components/CommonUI';
 import { Market, Distributor } from '../types';
 import { MarketAPI, DistributorAPI } from '../services/api';
@@ -270,7 +270,7 @@ export const MarketManagement: React.FC = () => {
     }},
     { header: '시장명', accessor: 'name' },
     { header: '담당자명', accessor: (m) => m.managerName || '-' },
-    { header: '담당자전화', accessor: (m) => m.managerPhone || '-' },
+    { header: '담당자전화', accessor: (m) => formatPhoneNumber(m.managerPhone) || '-' }, // Formatted
     { header: '주소', accessor: (m) => `${m.address} ${m.addressDetail || ''}` },
     { header: '사용여부', accessor: (m) => <StatusBadge status={m.usageStatus || '사용'} />, width: '100px' },
   ];
@@ -358,7 +358,9 @@ export const MarketManagement: React.FC = () => {
               <FormRow label="담당자 전화">
                 <InputGroup 
                   value={formData.managerPhone || ''} 
-                  onChange={(e) => setFormData({...formData, managerPhone: e.target.value})} 
+                  onChange={(e) => setFormData({...formData, managerPhone: e.target.value.replace(/[^0-9]/g, '')})} 
+                  placeholder="숫자만 입력하세요"
+                  maxLength={11}
                 />
               </FormRow>
 
@@ -414,7 +416,7 @@ export const MarketManagement: React.FC = () => {
                            <InputGroup 
                              placeholder="휴대폰 번호 입력" 
                              value={tempSmsFire}
-                             onChange={(e) => setTempSmsFire(e.target.value)}
+                             onChange={(e) => setTempSmsFire(e.target.value.replace(/[^0-9]/g, ''))} // Numeric
                            />
                            <Button type="button" variant="secondary" onClick={() => addSms('fire')} className="whitespace-nowrap">추가</Button>
                         </div>
@@ -438,7 +440,7 @@ export const MarketManagement: React.FC = () => {
                            <InputGroup 
                              placeholder="휴대폰 번호 입력" 
                              value={tempSmsFault}
-                             onChange={(e) => setTempSmsFault(e.target.value)}
+                             onChange={(e) => setTempSmsFault(e.target.value.replace(/[^0-9]/g, ''))} // Numeric
                            />
                            <Button type="button" variant="secondary" onClick={() => addSms('fault')} className="whitespace-nowrap">추가</Button>
                         </div>

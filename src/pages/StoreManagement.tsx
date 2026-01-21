@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   PageHeader, SearchFilterBar, InputGroup, SelectGroup,
-  Button, DataTable, Pagination, ActionBar, FormSection, FormRow, Column, Modal, UI_STYLES, AddressInput
+  Button, DataTable, Pagination, ActionBar, FormSection, FormRow, Column, Modal, UI_STYLES, AddressInput,
+  formatPhoneNumber // Added import
 } from '../components/CommonUI';
 import { Store, Market } from '../types';
 import { StoreAPI, MarketAPI } from '../services/api';
@@ -316,7 +317,7 @@ export const StoreManagement: React.FC = () => {
     { header: '소속시장', accessor: 'marketName' },
     { header: '상가명', accessor: 'name' },
     { header: '대표자', accessor: 'managerName' },
-    { header: '대표자연락처', accessor: 'managerPhone' },
+    { header: '대표자연락처', accessor: (s) => formatPhoneNumber(s.managerPhone) || '-' }, // Formatted
     { header: '상태', accessor: (s) => (
        <span className={s.status === '사용' ? 'text-green-400' : 'text-red-400'}>{s.status}</span>
     )},
@@ -419,7 +420,9 @@ export const StoreManagement: React.FC = () => {
             <FormRow label="대표자 연락처">
                <InputGroup 
                  value={formData.managerPhone || ''} 
-                 onChange={(e) => setFormData({...formData, managerPhone: e.target.value})} 
+                 onChange={(e) => setFormData({...formData, managerPhone: e.target.value.replace(/[^0-9]/g, '')})} 
+                 placeholder="숫자만 입력하세요"
+                 maxLength={11}
                />
             </FormRow>
 
@@ -694,7 +697,7 @@ export const StoreManagement: React.FC = () => {
           { header: '소속시장', accessor: 'marketName' },
           { header: '상가명', accessor: 'name' },
           { header: '대표자', accessor: 'managerName' },
-          { header: '대표자연락처', accessor: 'managerPhone' },
+          { header: '대표자연락처', accessor: (s) => formatPhoneNumber(s.managerPhone) || '-' }, // Formatted
           { header: '상태', accessor: (s) => (
              <span className={s.status === '사용' ? 'text-green-400' : 'text-red-400'}>{s.status}</span>
           )},

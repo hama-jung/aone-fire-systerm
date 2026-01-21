@@ -3,6 +3,33 @@ import { ChevronLeft, ChevronRight, Search, Plus, FileSpreadsheet, Trash2, Rotat
 import { Market, Receiver } from '../types';
 import { MarketAPI, ReceiverAPI } from '../services/api';
 
+// --- Helper Functions ---
+export const formatPhoneNumber = (value: string | undefined) => {
+  if (!value) return '-';
+  const cleaned = value.replace(/[^0-9]/g, '');
+  
+  if (cleaned.length === 11) {
+    // 010-1234-5678
+    return cleaned.replace(/(\d{3})(\d{4})(\d{4})/, '$1-$2-$3');
+  }
+  if (cleaned.length === 10) {
+    // 02-1234-5678 or 011-123-4567
+    if (cleaned.startsWith('02')) {
+        return cleaned.replace(/(\d{2})(\d{4})(\d{4})/, '$1-$2-$3');
+    }
+    return cleaned.replace(/(\d{3})(\d{3})(\d{4})/, '$1-$2-$3');
+  }
+  if (cleaned.length === 9) {
+    // 02-123-4567
+    return cleaned.replace(/(\d{2})(\d{3})(\d{4})/, '$1-$2-$3');
+  }
+  if (cleaned.length === 8) {
+    // 1588-1234
+    return cleaned.replace(/(\d{4})(\d{4})/, '$1-$2');
+  }
+  return value;
+};
+
 // --- Colors & Styles Constants (Dark Mode) ---
 export const UI_STYLES = {
   primary: 'bg-blue-600 hover:bg-blue-500 text-white shadow-sm border border-transparent', 

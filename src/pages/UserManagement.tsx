@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { 
   PageHeader, SearchFilterBar, InputGroup, SelectGroup, 
-  Button, DataTable, Pagination, ActionBar, FormSection, FormRow, Column, Modal, UI_STYLES
+  Button, DataTable, Pagination, ActionBar, FormSection, FormRow, Column, Modal, UI_STYLES,
+  formatPhoneNumber // Added import
 } from '../components/CommonUI';
 import { User, RoleItem } from '../types';
 import { UserAPI, RoleAPI, CommonAPI } from '../services/api';
@@ -50,6 +51,7 @@ export const UserManagement: React.FC = () => {
   const [password, setPassword] = useState('');
   const [passwordConfirm, setPasswordConfirm] = useState('');
   const [passwordError, setPasswordError] = useState('');
+  const [phone, setPhone] = useState(''); // Added phone state for input control
   
   // --- ID Creation Modal States ---
   const [isIdModalOpen, setIsIdModalOpen] = useState(false);
@@ -112,6 +114,7 @@ export const UserManagement: React.FC = () => {
     setSelectedUser(null); 
     setInputUserId('');
     setDepartmentName('');
+    setPhone('');
     setPassword('');
     setPasswordConfirm('');
     setPasswordError('');
@@ -123,6 +126,7 @@ export const UserManagement: React.FC = () => {
     setSelectedUser(user); 
     setInputUserId(user.userId);
     setDepartmentName(user.department || '');
+    setPhone(user.phone || '');
     setPassword('');
     setPasswordConfirm('');
     setPasswordError('');
@@ -256,7 +260,7 @@ export const UserManagement: React.FC = () => {
       userId: inputUserId,
       name: (form.elements.namedItem('name') as HTMLInputElement).value,
       role: (form.elements.namedItem('role') as HTMLSelectElement).value,
-      phone: (form.elements.namedItem('phone') as HTMLInputElement).value,
+      phone: phone, // Use controlled state
       department: departmentName,
       status: (form.elements.namedItem('status') as RadioNodeList).value as '사용' | '미사용',
       smsReceive: (form.elements.namedItem('smsReceive') as RadioNodeList).value as '수신' | '미수신',
@@ -306,7 +310,10 @@ export const UserManagement: React.FC = () => {
     { header: '사용자 ID', accessor: 'userId' },
     { header: '성명', accessor: 'name' },
     { header: '소속/업체명', accessor: 'department' },
-    { header: '연락처', accessor: 'phone' },
+    { 
+      header: '연락처', 
+      accessor: (user) => formatPhoneNumber(user.phone) // Format phone number
+    },
     { header: '역할', accessor: 'role' },
     { header: '상태', accessor: (user: User) => (
       <span className={`px-2 py-0.5 rounded text-xs ${user.status === '사용' ? 'bg-green-900/50 text-green-300 border border-green-800' : 'bg-red-900/50 text-red-300 border border-red-800'}`}>
@@ -327,7 +334,7 @@ export const UserManagement: React.FC = () => {
   if (view === 'form') {
     return (
       <>
-        <PageHeader title="사용자 관리" />
+        <PageHeader title={selectedUser ? "사용자 수정" : "사용자 신규등록"} />
         <form onSubmit={handleSave} key={selectedUser ? selectedUser.id : 'new-entry'} autoComplete="off">
           <FormSection title={selectedUser ? "사용자 수정" : "사용자 신규등록"}>
             {/* 1행: 사용자 ID (아이디 만들기 모달 트리거) */}
@@ -408,7 +415,14 @@ export const UserManagement: React.FC = () => {
 
             {/* 4행: 연락처, SMS 수신 여부 */}
             <FormRow label="연락처" required>
-              <InputGroup name="phone" defaultValue={selectedUser?.phone} placeholder="010-0000-0000" required />
+              <InputGroup 
+                name="phone" 
+                value={phone}
+                onChange={(e) => setPhone(e.target.value.replace(/[^0-9]/g, ''))} // 숫자만 허용
+                placeholder="숫자만 입력하세요" 
+                required 
+                maxLength={11}
+              />
             </FormRow>
             <FormRow label="SMS 수신 여부">
               <div className={`${UI_STYLES.input} flex gap-6 items-center`}>

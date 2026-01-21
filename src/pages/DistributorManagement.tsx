@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { 
   PageHeader, SearchFilterBar, InputGroup, SelectGroup, AddressInput,
-  Button, DataTable, Pagination, ActionBar, FormSection, FormRow, Column, UI_STYLES
+  Button, DataTable, Pagination, ActionBar, FormSection, FormRow, Column, UI_STYLES,
+  formatPhoneNumber // Added import
 } from '../components/CommonUI';
 import { Distributor } from '../types';
 import { DistributorAPI } from '../services/api';
@@ -175,7 +176,7 @@ export const DistributorManagement: React.FC = () => {
     { header: 'No', accessor: 'id', width: '60px' },
     { header: '총판명', accessor: 'name' },
     { header: '담당자명', accessor: 'managerName' },
-    { header: '담당자전화', accessor: 'managerPhone' },
+    { header: '담당자전화', accessor: (d) => formatPhoneNumber(d.managerPhone) || '-' }, // Formatted
     { header: 'E-mail', accessor: 'managerEmail' },
     { header: '주소', accessor: (d) => `${d.address} ${d.addressDetail}` },
   ];
@@ -236,7 +237,9 @@ export const DistributorManagement: React.FC = () => {
               <FormRow label="담당자 전화">
                   <InputGroup 
                       value={formData.managerPhone || ''} 
-                      onChange={e => setFormData({...formData, managerPhone: e.target.value})}
+                      onChange={e => setFormData({...formData, managerPhone: e.target.value.replace(/[^0-9]/g, '')})}
+                      placeholder="숫자만 입력하세요"
+                      maxLength={11}
                   />
               </FormRow>
 

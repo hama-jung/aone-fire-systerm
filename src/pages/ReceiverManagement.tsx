@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { 
   PageHeader, SearchFilterBar, InputGroup, SelectGroup, Button, DataTable, 
   Pagination, FormSection, FormRow, Column, UI_STYLES,
-  StatusBadge, StatusRadioGroup, MarketSearchModal
+  StatusBadge, StatusRadioGroup, MarketSearchModal,
+  formatPhoneNumber // Added import
 } from '../components/CommonUI';
 import { Receiver, Market } from '../types';
 import { ReceiverAPI } from '../services/api';
@@ -295,7 +296,7 @@ export const ReceiverManagement: React.FC = () => {
     { header: 'MAC주소', accessor: 'macAddress', width: '200px' },
     { header: '설치시장', accessor: 'marketName' }, // 나머지 공간 차지
     { header: 'IP주소', accessor: 'ip', width: '200px' },
-    { header: '전화번호', accessor: 'emergencyPhone', width: '200px' },
+    { header: '전화번호', accessor: (r) => formatPhoneNumber(r.emergencyPhone) || '-', width: '200px' }, // Formatted
     { header: 'DNS', accessor: 'dns', width: '200px' },
     { header: '송신주기', accessor: 'transmissionInterval', width: '150px' },
     { header: '사용여부', accessor: (item) => <StatusBadge status={item.status} />, width: '120px' },
@@ -332,7 +333,9 @@ export const ReceiverManagement: React.FC = () => {
             <FormRow label="속보전화번호">
               <InputGroup 
                 value={formData.emergencyPhone || ''} 
-                onChange={(e) => setFormData({...formData, emergencyPhone: e.target.value})}
+                onChange={(e) => setFormData({...formData, emergencyPhone: e.target.value.replace(/[^0-9]/g, '')})}
+                placeholder="숫자만 입력하세요"
+                maxLength={11}
               />
             </FormRow>
 
@@ -414,86 +417,6 @@ export const ReceiverManagement: React.FC = () => {
             <Button type="button" variant="secondary" onClick={() => setView('list')} className="w-32">목록</Button>
           </div>
         </form>
-
-        {/* Common Market Modal */}
-        <MarketSearchModal 
-          isOpen={isMarketModalOpen} 
-          onClose={() => setIsMarketModalOpen(false)} 
-          onSelect={handleMarketSelect} 
-        />
-      </>
-    );
-  }
-
-  // --- View: Excel ---
-  if (view === 'excel') {
-    return (
-      <>
-        <PageHeader title="R형 수신기 엑셀 신규 등록" />
-        <FormSection title="엑셀 일괄 등록">
-            {/* 1. 소속 시장 선택 */}
-            <FormRow label="소속 시장" required className="col-span-1 md:col-span-2">
-               <div className="flex gap-2 w-full max-w-md">
-                 <div onClick={openMarketModal} className="flex-1 relative cursor-pointer">
-                    <input 
-                       type="text"
-                       value={excelMarket?.name || ''} 
-                       placeholder="등록할 시장을 선택하세요" 
-                       readOnly 
-                       className={`${UI_STYLES.input} cursor-pointer hover:bg-slate-700/50 pr-8`}
-                    />
-                    <Search className="absolute right-3 top-2.5 text-slate-400 pointer-events-none" size={16} />
-                 </div>
-                 <Button type="button" variant="secondary" onClick={openMarketModal}>찾기</Button>
-               </div>
-            </FormRow>
-
-            {/* 2. 파일 선택 */}
-            <FormRow label="엑셀 파일 선택" required className="col-span-1 md:col-span-2">
-                <div className="flex flex-col gap-2">
-                   <InputGroup 
-                      type="file" 
-                      accept=".xlsx, .xls"
-                      onChange={handleExcelFileChange}
-                      className="border-0 p-0 text-slate-300 w-full"
-                   />
-                   <p className="text-xs text-slate-400">
-                     * MAC주소, IP주소, 속보전화번호, DNS, 데이터전송주기, 사용여부 컬럼을 포함해야 합니다.
-                   </p>
-                </div>
-            </FormRow>
-
-            {/* 3. 샘플 다운로드 */}
-            <FormRow label="샘플 양식" className="col-span-1 md:col-span-2">
-                <Button type="button" variant="secondary" onClick={handleSampleDownload} icon={<Upload size={14} />}>
-                   엑셀 샘플 다운로드
-                </Button>
-            </FormRow>
-        </FormSection>
-
-        {/* 미리보기 테이블 */}
-        {excelData.length > 0 && (
-          <div className="mt-8">
-             <h3 className="text-lg font-bold text-slate-200 mb-2">등록 미리보기 ({excelData.length}건)</h3>
-             <DataTable<Receiver> 
-               columns={[
-                  {header:'MAC주소', accessor:'macAddress'},
-                  {header:'IP주소', accessor:'ip'},
-                  {header:'전화번호', accessor:'emergencyPhone'},
-                  {header:'DNS', accessor:'dns'},
-                  {header:'전송주기', accessor:'transmissionInterval'},
-                  {header:'사용여부', accessor:'status'},
-               ]}
-               data={excelData.slice(0, 50)} 
-             />
-             {excelData.length > 50 && <p className="text-center text-slate-500 text-sm mt-2">...외 {excelData.length - 50}건</p>}
-          </div>
-        )}
-
-        <div className="flex justify-center gap-3 mt-8">
-            <Button type="button" variant="primary" onClick={handleExcelSave} className="w-32" disabled={excelData.length === 0}>일괄 등록</Button>
-            <Button type="button" variant="secondary" onClick={() => setView('list')} className="w-32">취소</Button>
-        </div>
 
         {/* Common Market Modal */}
         <MarketSearchModal 
