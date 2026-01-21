@@ -17,8 +17,7 @@ export const FireHistoryManagement: React.FC = () => {
   // 공통코드 매핑 상태 (DB에서 가져온 코드 -> 명칭)
   const [codeMap, setCodeMap] = useState<Record<string, string>>({});
 
-  // Search Filters
-  // Default range: 1 month ago ~ Today
+  // --- Search Filters & State ---
   const today = new Date();
   const oneMonthAgo = new Date();
   oneMonthAgo.setMonth(today.getMonth() - 1);
@@ -29,6 +28,9 @@ export const FireHistoryManagement: React.FC = () => {
   const [endDate, setEndDate] = useState(formatDate(today));
   const [searchMarket, setSearchMarket] = useState('');
   const [searchStatus, setSearchStatus] = useState<'all' | 'fire' | 'false'>('all');
+  
+  // [공통규칙 적용] 검색 필터 상태 관리
+  const [isFiltered, setIsFiltered] = useState(false);
 
   // Selection
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
@@ -94,14 +96,16 @@ export const FireHistoryManagement: React.FC = () => {
 
   // --- Handlers ---
   const handleSearch = async () => {
-    // [NEW] 공통 유효성 검사 (1개월 범위, 미래 날짜 차단 등)
+    // 공통 유효성 검사 (1개월 범위, 미래 날짜 차단 등)
     if (!validateDateRange(startDate, endDate)) {
         return;
     }
     
+    // [공통규칙 적용] 검색 버튼 클릭 시 필터링 상태 활성화
+    setIsFiltered(true);
+    
     setLoading(true);
     try {
-        // [FIX] 검색 조건을 API에 전달하여 DB 필터링 수행
         const data = await FireHistoryAPI.getList({
             startDate,
             endDate,
@@ -118,6 +122,36 @@ export const FireHistoryManagement: React.FC = () => {
     }
   };
 
+  // [공통규칙 적용] 초기화(전체보기) 핸들러
+  const handleReset = async () => {
+    // 1. 검색 조건 초기화 (날짜는 기본 1개월 전으로 복귀)
+    const resetStart = formatDate(oneMonthAgo);
+    const resetEnd = formatDate(today);
+    
+    setStartDate(resetStart);
+    setEndDate(resetEnd);
+    setSearchMarket('');
+    setSearchStatus('all');
+    
+    // 2. 필터 상태 해제
+    setIsFiltered(false);
+
+    // 3. 데이터 다시 로드
+    setLoading(true);
+    try {
+        const data = await FireHistoryAPI.getList({
+            startDate: resetStart,
+            endDate: resetEnd
+        });
+        setHistoryList(data);
+        setCurrentPage(1);
+    } catch(e) {
+        console.error(e);
+    } finally {
+        setLoading(false);
+    }
+  };
+
   const handleDelete = async () => {
     if (selectedIds.size === 0) {
         alert("삭제할 항목을 선택해주세요.");
@@ -129,7 +163,15 @@ export const FireHistoryManagement: React.FC = () => {
             alert("삭제되었습니다.");
             setSelectedIds(new Set());
             // 새로고침 (현재 검색 조건 유지)
-            handleSearch();
+            // 현재 상태가 filtered라면 검색 조건으로, 아니면 초기 조건으로 리로드
+            // 여기서는 간단히 현재 state 값을 사용하여 다시 검색 호출
+            const data = await FireHistoryAPI.getList({
+                startDate,
+                endDate,
+                marketName: searchMarket,
+                status: searchStatus
+            });
+            setHistoryList(data);
         } catch (e: any) {
             alert(`삭제 실패: ${e.message}`);
         }
@@ -177,8 +219,15 @@ export const FireHistoryManagement: React.FC = () => {
             await FireHistoryAPI.save(selectedItem.id, modalType, modalMemo);
             alert("저장되었습니다.");
             setIsModalOpen(false);
-            // 목록 갱신 (현재 검색 조건 유지)
-            handleSearch();
+            
+            // 목록 갱신
+            const data = await FireHistoryAPI.getList({
+                startDate,
+                endDate,
+                marketName: searchMarket,
+                status: searchStatus
+            });
+            setHistoryList(data);
         } catch (e: any) {
             alert(`저장 실패: ${e.message}`);
         }
@@ -260,9 +309,9 @@ export const FireHistoryManagement: React.FC = () => {
         ⚠️ 공통코드 관리 메뉴에 등록된 코드명(예: 화재알람, 화재해소)과 연동되어 표시됩니다.
       </div>
 
-      {/* Search Filter Bar */}
-      <SearchFilterBar onSearch={handleSearch}>
-        {/* [NEW] 기간 검색 (DateRangePicker 사용) */}
+      {/* [공통규칙 적용] SearchFilterBar에 onReset과 isFiltered 전달 */}
+      <SearchFilterBar onSearch={handleSearch} onReset={handleReset} isFiltered={isFiltered}>
+        {/* 기간 검색 (DateRangePicker 사용) */}
         <DateRangePicker 
             startDate={startDate}
             endDate={endDate}
