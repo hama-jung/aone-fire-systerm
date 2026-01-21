@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { 
   PageHeader, SearchFilterBar, InputGroup, Button, DataTable, 
-  Pagination, Column, Modal, UI_STYLES, ITEMS_PER_PAGE // Import global constant
+  Pagination, Column, Modal, UI_STYLES, ITEMS_PER_PAGE,
+  DateRangePicker, validateDateRange // Import date components
 } from '../components/CommonUI';
 import { FireHistoryItem, CommonCode } from '../types';
 import { FireHistoryAPI, CommonCodeAPI } from '../services/api';
@@ -17,7 +18,7 @@ export const FireHistoryManagement: React.FC = () => {
   const [codeMap, setCodeMap] = useState<Record<string, string>>({});
 
   // Search Filters
-  // Default range: 1 month
+  // Default range: 1 month ago ~ Today
   const today = new Date();
   const oneMonthAgo = new Date();
   oneMonthAgo.setMonth(today.getMonth() - 1);
@@ -90,19 +91,15 @@ export const FireHistoryManagement: React.FC = () => {
 
   // --- Handlers ---
   const handleSearch = async () => {
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-    const diffTime = Math.abs(end.getTime() - start.getTime());
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-    if (diffDays > 31) {
-        alert("기간은 최대 1달까지만 설정할 수 있습니다.");
+    // [NEW] 공통 유효성 검사 (1개월 범위, 미래 날짜 차단 등)
+    if (!validateDateRange(startDate, endDate)) {
         return;
     }
     
     // 단순 목록 갱신 (실제 검색 필터링은 API단에서 처리 필요하나 여기선 예시로 getList 호출)
     setLoading(true);
     try {
+        // 실제로는 startDate, endDate를 API에 파라미터로 넘겨야 함
         const data = await FireHistoryAPI.getList();
         setHistoryList(data);
     } catch(e) {
@@ -258,25 +255,13 @@ export const FireHistoryManagement: React.FC = () => {
 
       {/* Search Filter Bar */}
       <SearchFilterBar onSearch={handleSearch}>
-        {/* 기간 검색 */}
-        <div className="min-w-[300px]">
-            <label className={UI_STYLES.label}>기간</label>
-            <div className="flex items-center gap-2">
-                <input 
-                    type="date" 
-                    value={startDate} 
-                    onChange={(e) => setStartDate(e.target.value)} 
-                    className={UI_STYLES.input} 
-                />
-                <span className="text-slate-400">~</span>
-                <input 
-                    type="date" 
-                    value={endDate} 
-                    onChange={(e) => setEndDate(e.target.value)} 
-                    className={UI_STYLES.input} 
-                />
-            </div>
-        </div>
+        {/* [NEW] 기간 검색 (DateRangePicker 사용) */}
+        <DateRangePicker 
+            startDate={startDate}
+            endDate={endDate}
+            onStartDateChange={setStartDate}
+            onEndDateChange={setEndDate}
+        />
         
         {/* 설치시장 검색 */}
         <div className="min-w-[200px]">

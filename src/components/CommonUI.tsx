@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { ChevronLeft, ChevronRight, Search, Plus, FileSpreadsheet, Trash2, RotateCcw, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Search, Plus, FileSpreadsheet, Trash2, RotateCcw, X, Calendar } from 'lucide-react';
 import { Market, Receiver } from '../types';
 import { MarketAPI, ReceiverAPI } from '../services/api';
 
@@ -33,7 +33,7 @@ export const formatPhoneNumber = (value: string | undefined) => {
   return value;
 };
 
-// [NEW] 숫자 외의 키 입력 차단 핸들러
+// 숫자 외의 키 입력 차단 핸들러
 export const handlePhoneKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
   const allowedKeys = [
     'Backspace', 'Delete', 'Tab', 'Escape', 'Enter',
@@ -50,6 +50,51 @@ export const handlePhoneKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => 
   if (!/^[0-9]$/.test(e.key)) {
     e.preventDefault();
   }
+};
+
+// --- Date Logic Helpers (1 Month Rule) ---
+const getDateConstraints = () => {
+  const today = new Date();
+  const maxDate = today.toISOString().split('T')[0]; // 오늘 (미래 선택 불가)
+  
+  const minDateObj = new Date(today);
+  minDateObj.setMonth(today.getMonth() - 1); // 1달 전
+  const minDate = minDateObj.toISOString().split('T')[0];
+
+  return { minDate, maxDate };
+};
+
+export const validateDateRange = (startDate: string, endDate: string): boolean => {
+  if (!startDate || !endDate) return true; // 날짜가 비어있으면 검색 로직에서 처리
+
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+  const today = new Date();
+  // 시간 성분 제거 (날짜만 비교)
+  today.setHours(0,0,0,0);
+  start.setHours(0,0,0,0);
+  end.setHours(0,0,0,0);
+
+  const { minDate } = getDateConstraints();
+  const limitDate = new Date(minDate);
+  limitDate.setHours(0,0,0,0);
+
+  if (start > end) {
+    alert("시작일은 종료일보다 클 수 없습니다.");
+    return false;
+  }
+
+  if (end > today) {
+    alert("종료일은 오늘 날짜를 초과할 수 없습니다.");
+    return false;
+  }
+
+  if (start < limitDate) {
+    alert(`시작일은 오늘 기준 1달 전(${minDate})까지만 선택 가능합니다.`);
+    return false;
+  }
+
+  return true;
 };
 
 // --- Colors & Styles Constants (Dark Mode) ---
@@ -153,6 +198,50 @@ export const SelectGroup: React.FC<SelectGroupProps> = ({ label, options, classN
     </select>
   </div>
 );
+
+// --- Date Range Picker (New Component) ---
+interface DateRangePickerProps {
+  startDate: string;
+  endDate: string;
+  onStartDateChange: (date: string) => void;
+  onEndDateChange: (date: string) => void;
+  label?: string;
+}
+
+export const DateRangePicker: React.FC<DateRangePickerProps> = ({ 
+  startDate, endDate, onStartDateChange, onEndDateChange, label = "기간"
+}) => {
+  const { minDate, maxDate } = getDateConstraints();
+
+  return (
+    <div className="min-w-[300px]">
+      <label className={UI_STYLES.label}>{label}</label>
+      <div className="flex items-center gap-2">
+        <div className="relative flex-1">
+          <input 
+            type="date" 
+            value={startDate} 
+            onChange={(e) => onStartDateChange(e.target.value)} 
+            className={UI_STYLES.input} 
+            min={minDate}
+            max={maxDate} // 시작일도 오늘을 넘길 수 없음
+          />
+        </div>
+        <span className="text-slate-400">~</span>
+        <div className="relative flex-1">
+          <input 
+            type="date" 
+            value={endDate} 
+            onChange={(e) => onEndDateChange(e.target.value)} 
+            className={UI_STYLES.input} 
+            min={minDate}
+            max={maxDate}
+          />
+        </div>
+      </div>
+    </div>
+  );
+};
 
 // --- Status Badge ---
 export const StatusBadge: React.FC<{ status: string }> = ({ status }) => (
