@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   PageHeader, SearchFilterBar, InputGroup, SelectGroup, Button, DataTable, 
-  Pagination, FormSection, FormRow, Column, UI_STYLES, StatusRadioGroup, ActionBar
+  Pagination, FormSection, FormRow, Column, UI_STYLES, StatusRadioGroup, ActionBar, StatusBadge
 } from '../components/CommonUI';
 import { CommonCode } from '../types';
 import { CommonCodeAPI } from '../services/api';
@@ -183,6 +183,7 @@ export const CommonCodeManagement: React.FC = () => {
     { header: '공통코드 설명', accessor: 'description' },
     { header: '공통그룹코드', accessor: 'groupCode', width: '150px' },
     { header: '공통그룹코드명', accessor: 'groupName', width: '200px' },
+    { header: '사용여부', accessor: (item) => <StatusBadge status={item.status} />, width: '100px' },
   ];
 
   // Pagination logic
