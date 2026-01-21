@@ -211,15 +211,16 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Top Header */}
         <header className="h-14 bg-[#2f3b52] text-white shadow-md flex items-center justify-between px-4 lg:px-6 z-40 border-b border-[#1e293b] flex-shrink-0">
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
+            {/* 1. 햄버거 메뉴 (모바일) */}
             <button 
-              className="lg:hidden p-2 text-gray-300 hover:bg-[#3e4b61] rounded-md"
+              className="lg:hidden p-2 text-gray-300 hover:bg-[#3e4b61] rounded-md transition-colors"
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
             >
               <Menu size={22} />
             </button>
             
-            {/* Left Side: Fire Status Alert */}
+            {/* 2. 화재 상황 알림 */}
             <div className="flex items-center gap-2 text-red-500 font-bold px-2 py-1 rounded bg-red-500/10 border border-red-500/20">
                <Bell size={16} className="animate-pulse" />
                <span className="text-[13px] hidden sm:inline">현재 전국 화재 상황 (0건)</span>
@@ -229,43 +230,27 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
 
           {/* Right Side Controls */}
           <div className="flex items-center gap-2">
-             {/* User Profile */}
-             <div className="flex items-center gap-2 mr-3 px-3 py-1 rounded-full bg-[#3e4b61]/50 border border-[#4b5563]">
-                <div className="p-1 bg-gray-600 rounded-full">
-                  <User size={12} className="text-white" />
-                </div>
-                <span className="text-[13px] text-gray-200 hidden sm:inline">
-                  {currentUser ? (
-                    <>
-                      <span className="font-bold text-white">{currentUser.name}</span> ({currentUser.userId})
-                    </>
-                  ) : (
-                    <span className="font-bold text-white">Guest</span>
-                  )}
-                </span>
-             </div>
+             {/* 3. 사용자 이름 (아이콘 제거) */}
+             <span className="text-sm font-bold text-white mr-2">
+               {currentUser?.name || 'Guest'}
+             </span>
 
-             {/* Action Buttons (PC Only) */}
-             <div className="hidden sm:flex items-center gap-2">
-               <button 
-                 onClick={handleOpenPwModal}
-                 className="flex items-center gap-1.5 px-3 py-1.5 rounded border border-gray-600 hover:bg-[#3e4b61] text-gray-300 hover:text-white transition-colors text-[12px]"
-               >
-                 <Key size={12} />
-                 <span>비밀번호 변경</span>
-               </button>
-
-               <button className="p-1.5 rounded-full hover:bg-[#3e4b61] text-gray-400 hover:text-white transition-colors">
-                 <HelpCircle size={18} />
-               </button>
-             </div>
-
+             {/* 4. 비밀번호 변경 (열쇠 아이콘) */}
              <button 
-               className="flex items-center gap-1.5 px-3 py-1.5 rounded border border-gray-600 hover:bg-[#3e4b61] text-gray-300 hover:text-white transition-colors text-[12px]"
-               onClick={handleLogout}
+               onClick={handleOpenPwModal}
+               className="p-2 rounded-full hover:bg-[#3e4b61] text-gray-300 hover:text-white transition-colors"
+               title="비밀번호 변경"
              >
-               <LogOut size={12} />
-               <span className="hidden sm:inline">로그아웃</span>
+               <Key size={20} />
+             </button>
+
+             {/* 5. 로그아웃 */}
+             <button 
+               onClick={handleLogout}
+               className="p-2 rounded-full hover:bg-[#3e4b61] text-gray-300 hover:text-white transition-colors"
+               title="로그아웃"
+             >
+               <LogOut size={20} />
              </button>
           </div>
         </header>
