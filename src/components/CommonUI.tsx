@@ -129,11 +129,16 @@ export const Button: React.FC<ButtonProps> = ({ variant = 'primary', className =
 };
 
 // --- Page Header ---
-export const PageHeader: React.FC<{ title: string }> = ({ title }) => (
-  <div className="mb-4 md:mb-6 flex items-center justify-between border-b border-slate-700 pb-3 md:pb-4">
+export const PageHeader: React.FC<{ title: string; rightContent?: React.ReactNode }> = ({ title, rightContent }) => (
+  <div className="mb-4 md:mb-5 flex items-center justify-between border-b border-slate-700 pb-3 md:pb-4 min-h-[50px]">
     <h1 className="text-lg md:text-xl font-bold text-slate-100">
       {title}
     </h1>
+    {rightContent && (
+      <div className="flex items-center">
+        {rightContent}
+      </div>
+    )}
   </div>
 );
 
@@ -199,7 +204,7 @@ export const SelectGroup: React.FC<SelectGroupProps> = ({ label, options, classN
   </div>
 );
 
-// --- Date Range Picker (New Component) ---
+// --- Date Range Picker ---
 interface DateRangePickerProps {
   startDate: string;
   endDate: string;
@@ -224,7 +229,7 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = ({
             onChange={(e) => onStartDateChange(e.target.value)} 
             className={UI_STYLES.input} 
             min={minDate}
-            max={maxDate} // 시작일도 오늘을 넘길 수 없음
+            max={maxDate} 
           />
         </div>
         <span className="text-slate-400">~</span>
@@ -262,7 +267,6 @@ export const StatusRadioGroup: React.FC<{
   name?: string; 
 }> = ({ label = "사용여부", value, onChange, name = "status" }) => (
   <div className={`flex flex-col gap-1.5 w-full`}>
-    {/* Only render label if it's not empty string to prevent double spacing */}
     {label && <label className={UI_STYLES.label}>{label}</label>}
     <div className={`${UI_STYLES.input} flex gap-4 text-slate-300 items-center`}>
       <label className="flex items-center gap-2 cursor-pointer hover:text-white transition-colors">
@@ -327,6 +331,7 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, icon, chil
   );
 };
 
+// ... (Search Modals remain the same: MarketSearchModal, ReceiverSearchModal)
 export const MarketSearchModal: React.FC<{
   isOpen: boolean;
   onClose: () => void;
@@ -343,7 +348,6 @@ export const MarketSearchModal: React.FC<{
     setPage(1);
   };
 
-  // Open될 때 초기화
   useEffect(() => {
     if (isOpen) {
       setSearchName('');
