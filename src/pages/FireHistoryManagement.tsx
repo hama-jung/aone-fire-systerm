@@ -61,7 +61,10 @@ export const FireHistoryManagement: React.FC = () => {
     try {
         const [codes, history] = await Promise.all([
             CommonCodeAPI.getList(), // 전체 공통코드 조회
-            FireHistoryAPI.getList() // 화재 이력 조회
+            FireHistoryAPI.getList({ // 초기 로드 시 기본 날짜 범위 적용
+                startDate: formatDate(oneMonthAgo),
+                endDate: formatDate(today)
+            }) 
         ]);
 
         // 코드 맵 생성 (code -> name)
@@ -96,14 +99,20 @@ export const FireHistoryManagement: React.FC = () => {
         return;
     }
     
-    // 단순 목록 갱신 (실제 검색 필터링은 API단에서 처리 필요하나 여기선 예시로 getList 호출)
     setLoading(true);
     try {
-        // 실제로는 startDate, endDate를 API에 파라미터로 넘겨야 함
-        const data = await FireHistoryAPI.getList();
+        // [FIX] 검색 조건을 API에 전달하여 DB 필터링 수행
+        const data = await FireHistoryAPI.getList({
+            startDate,
+            endDate,
+            marketName: searchMarket,
+            status: searchStatus
+        });
         setHistoryList(data);
+        setCurrentPage(1); // 검색 시 1페이지로 리셋
     } catch(e) {
         console.error(e);
+        alert('검색 중 오류가 발생했습니다.');
     } finally {
         setLoading(false);
     }
@@ -119,9 +128,8 @@ export const FireHistoryManagement: React.FC = () => {
             await Promise.all(Array.from(selectedIds).map(id => FireHistoryAPI.delete(id)));
             alert("삭제되었습니다.");
             setSelectedIds(new Set());
-            // 새로고침 (데이터만)
-            const data = await FireHistoryAPI.getList();
-            setHistoryList(data);
+            // 새로고침 (현재 검색 조건 유지)
+            handleSearch();
         } catch (e: any) {
             alert(`삭제 실패: ${e.message}`);
         }
@@ -169,9 +177,8 @@ export const FireHistoryManagement: React.FC = () => {
             await FireHistoryAPI.save(selectedItem.id, modalType, modalMemo);
             alert("저장되었습니다.");
             setIsModalOpen(false);
-            // 목록 갱신
-            const data = await FireHistoryAPI.getList();
-            setHistoryList(data);
+            // 목록 갱신 (현재 검색 조건 유지)
+            handleSearch();
         } catch (e: any) {
             alert(`저장 실패: ${e.message}`);
         }

@@ -1271,14 +1271,41 @@ export const DashboardAPI = {
   }
 };
 
-// [Updated] FireHistoryAPI - Now using Supabase
+// [Updated] FireHistoryAPI - Now using Supabase and Filtering
 export const FireHistoryAPI = {
-  getList: async () => {
-    const { data, error } = await supabase
+  getList: async (params?: { startDate?: string, endDate?: string, marketName?: string, status?: string }) => {
+    let query = supabase
       .from('fire_history')
       .select('*')
       .order('registeredAt', { ascending: false });
 
+    // [Filter Logic Added]
+    if (params) {
+        if (params.startDate) {
+            // startDate의 00:00:00 부터
+            query = query.gte('registeredAt', `${params.startDate}T00:00:00`);
+        }
+        if (params.endDate) {
+            // endDate의 23:59:59 까지
+            query = query.lte('registeredAt', `${params.endDate}T23:59:59.999`);
+        }
+        if (params.marketName) {
+            query = query.ilike('marketName', `%${params.marketName}%`);
+        }
+        if (params.status && params.status !== 'all') {
+            // UI 상태값 ('fire', 'false')을 DB 저장값 ('화재', '오탐')으로 매핑
+            // (참고: DB에는 '등록' 상태도 있을 수 있음)
+            const statusMap: Record<string, string> = {
+                'fire': '화재',
+                'false': '오탐'
+            };
+            if (statusMap[params.status]) {
+                query = query.eq('falseAlarmStatus', statusMap[params.status]);
+            }
+        }
+    }
+
+    const { data, error } = await query;
     if (error) handleError(error);
     return data as FireHistoryItem[];
   },
