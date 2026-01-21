@@ -497,7 +497,7 @@ export const DetectorManagement: React.FC = () => {
            <SearchFilterBar onSearch={fetchStores}>
               <InputGroup label="상가명" value={storeSearchName} onChange={(e) => setStoreSearchName(e.target.value)} placeholder="상가명 검색" />
            </SearchFilterBar>
-           <DataTable 
+           <DataTable<Store> 
              columns={[
                 { header: '총판/시장', accessor: (s) => s.marketName },
                 { header: '상가명', accessor: 'name' },

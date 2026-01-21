@@ -189,9 +189,6 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, icon, chil
   );
 };
 
-// ... (Rest of the file remains unchanged, including Business Modals, AddressSearchModal, etc.)
-// ... (MarketSearchModal, ReceiverSearchModal, AddressSearchModal, AddressInput, DataTable, Pagination, ActionBar, FormSection, FormRow)
-
 // --- Business Modals (Market, Receiver) ---
 
 export const MarketSearchModal: React.FC<{
@@ -231,7 +228,7 @@ export const MarketSearchModal: React.FC<{
           onKeyDown={(e) => e.key === 'Enter' && fetchMarkets()}
         />
       </SearchFilterBar>
-      <DataTable 
+      <DataTable<Market>
         columns={[
           { header: '시장명', accessor: 'name' },
           { header: '주소', accessor: 'address' },
@@ -287,7 +284,7 @@ export const ReceiverSearchModal: React.FC<{
           onKeyDown={(e) => e.key === 'Enter' && fetchReceivers()}
         />
       </SearchFilterBar>
-      <DataTable 
+      <DataTable<Receiver>
         columns={[
           { header: 'MAC주소', accessor: 'macAddress', width: '150px' },
           { header: '설치시장', accessor: 'marketName' },
@@ -419,6 +416,19 @@ export const AddressSearchModal: React.FC<AddressSearchModalProps> = ({ isOpen, 
   );
 };
 
+// --- Helper: Mock Geocoder ---
+const getMockCoordinates = (address: string) => {
+  let hash = 0;
+  for (let i = 0; i < address.length; i++) {
+    hash = address.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  // Generate pseudo-random coordinates around Seoul/Korea
+  // Base: 37.xxx, 126.xxx or 127.xxx
+  const lat = (36.0 + (Math.abs(hash) % 20000) / 10000).toFixed(6);
+  const lng = (126.0 + (Math.abs(hash) % 30000) / 10000).toFixed(6);
+  return { lat, lng };
+};
+
 // --- Address Input Component (통합 주소 입력 폼) ---
 export interface AddressInputProps {
   label?: string;
@@ -427,6 +437,7 @@ export interface AddressInputProps {
   addressDetail: string;
   onAddressChange: (val: string) => void;
   onDetailChange: (val: string) => void;
+  onCoordinateChange?: (lat: string, lng: string) => void; // New prop for coordinates
   className?: string;
 }
 
@@ -437,6 +448,7 @@ export const AddressInput: React.FC<AddressInputProps> = ({
   addressDetail,
   onAddressChange,
   onDetailChange,
+  onCoordinateChange,
   className = ""
 }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -450,14 +462,22 @@ export const AddressInput: React.FC<AddressInputProps> = ({
     // 2. 모달 닫기 (즉시 언마운트)
     setIsOpen(false);
     
-    // 3. 상세 주소 입력창으로 포커스 이동
-    // React 상태 업데이트 후 DOM 렌더링 시간을 고려하여 약간의 지연 시간 부여
+    // 3. 좌표 자동 채우기 (Mock)
+    if (onCoordinateChange) {
+        // 실제 API 호출처럼 보이게 하기 위해 약간의 지연 추가 (선택사항)
+        setTimeout(() => {
+            const { lat, lng } = getMockCoordinates(data.address);
+            onCoordinateChange(lat, lng);
+        }, 100);
+    }
+
+    // 4. 상세 주소 입력창으로 포커스 이동
     setTimeout(() => {
         if (detailInputRef.current) {
             detailInputRef.current.focus();
         }
     }, 150);
-  }, [onAddressChange]);
+  }, [onAddressChange, onCoordinateChange]);
 
   const handleOpen = useCallback(() => setIsOpen(true), []);
   const handleClose = useCallback(() => setIsOpen(false), []);

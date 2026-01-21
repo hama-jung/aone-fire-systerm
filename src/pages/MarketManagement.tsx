@@ -328,8 +328,9 @@ export const MarketManagement: React.FC = () => {
                    required
                    address={formData.address || ''}
                    addressDetail={formData.addressDetail || ''}
-                   onAddressChange={(val) => setFormData({...formData, address: val})}
-                   onDetailChange={(val) => setFormData({...formData, addressDetail: val})}
+                   onAddressChange={(val) => setFormData(prev => ({...prev, address: val}))}
+                   onDetailChange={(val) => setFormData(prev => ({...prev, addressDetail: val}))}
+                   onCoordinateChange={(lat, lng) => setFormData(prev => ({...prev, latitude: lat, longitude: lng}))}
                 />
               </div>
 
