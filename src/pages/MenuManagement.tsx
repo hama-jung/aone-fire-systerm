@@ -80,14 +80,12 @@ export const MenuManagement: React.FC = () => {
     if (!confirm('현재 설정을 메뉴에 적용하시겠습니까?')) return;
 
     try {
-        const updates = displayMenus.map(m => ({
-            id: m.id,
-            isVisiblePc: m.isVisiblePc,
-            isVisibleMobile: m.isVisibleMobile,
-            allowDistributor: m.allowDistributor,
-            allowMarket: m.allowMarket,
-            allowLocal: m.allowLocal
-        }));
+        // [수정] 필수값(label 등) 누락으로 인한 upsert 오류 방지를 위해 전체 필드를 전송
+        // depth와 children은 UI 전용 속성이므로 제외
+        const updates = displayMenus.map(m => {
+            const { depth, children, ...dbFields } = m;
+            return dbFields;
+        });
 
         await MenuAPI.updateVisibilities(updates);
         triggerMenuUpdate(); // Notify Sidebar to refresh

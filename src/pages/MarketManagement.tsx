@@ -40,8 +40,6 @@ export const MarketManagement: React.FC = () => {
   // SMS 목록 관리 (Edit Mode 전용)
   const [smsFireList, setSmsFireList] = useState<string[]>([]);
   const [smsFaultList, setSmsFaultList] = useState<string[]>([]);
-  const [tempSmsFire, setTempSmsFire] = useState('');
-  const [tempSmsFault, setTempSmsFault] = useState('');
 
   // 초기 데이터 로드 (시장 목록 + 총판 목록)
   const initData = async () => {
@@ -226,8 +224,8 @@ export const MarketManagement: React.FC = () => {
       alert('저장되었습니다.');
       setView('list');
       fetchMarkets();
-    } catch (e) {
-      alert('저장 실패');
+    } catch (e: any) {
+      alert(`저장 실패: ${e.message}`);
     }
   };
 
