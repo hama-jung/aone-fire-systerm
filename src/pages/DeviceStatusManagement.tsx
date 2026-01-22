@@ -139,7 +139,7 @@ export const DeviceStatusManagement: React.FC = () => {
     }
     if (confirm(`선택한 ${selectedIds.size}개 항목을 삭제하시겠습니까?`)) {
         try {
-            await Promise.all(Array.from(selectedIds).map(id => DeviceStatusAPI.delete(id)));
+            await Promise.all(Array.from(selectedIds).map((id: number) => DeviceStatusAPI.delete(id)));
             alert("삭제되었습니다.");
             setSelectedIds(new Set());
             handleSearch(); // Refresh list

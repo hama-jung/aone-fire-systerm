@@ -159,7 +159,7 @@ export const FireHistoryManagement: React.FC = () => {
     }
     if (confirm(`선택한 ${selectedIds.size}개 항목을 삭제하시겠습니까?`)) {
         try {
-            await Promise.all(Array.from(selectedIds).map(id => FireHistoryAPI.delete(id)));
+            await Promise.all(Array.from(selectedIds).map((id: number) => FireHistoryAPI.delete(id)));
             alert("삭제되었습니다.");
             setSelectedIds(new Set());
             // 새로고침 (현재 검색 조건 유지)
