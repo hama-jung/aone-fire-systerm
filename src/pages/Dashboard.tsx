@@ -192,7 +192,7 @@ export const Dashboard: React.FC = () => {
         window.kakao.maps.load(() => {
             const options = {
                 center: new window.kakao.maps.LatLng(36.3504119, 127.3845475), // 대전 시청 부근
-                level: 12 // [수정] 지도 확대 레벨 13 -> 12 (숫자가 작을수록 확대)
+                level: 11 // 지도 확대 레벨
             };
             const map = new window.kakao.maps.Map(mapContainer.current, options);
             
@@ -233,6 +233,21 @@ export const Dashboard: React.FC = () => {
       if (timeoutId) clearTimeout(timeoutId);
     };
   }, []);
+
+  // [NEW] Resize Observer to handle container resizing and relayout map
+  useEffect(() => {
+    if (!mapInstance || !mapContainer.current) return;
+
+    const resizeObserver = new ResizeObserver(() => {
+      mapInstance.relayout();
+    });
+    
+    resizeObserver.observe(mapContainer.current);
+
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, [mapInstance]);
 
   // 4. Map Markers Update
   useEffect(() => {
@@ -328,7 +343,8 @@ export const Dashboard: React.FC = () => {
     <div className="flex flex-col h-full text-slate-200">
       <PageHeader title="대시보드" rightContent={timerContent} />
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-full pb-10">
+      {/* Grid: Removed pb-10 and changed h-full to flex-1 to utilize remaining space correctly */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 flex-1 min-h-0">
         {/* Left Column: Lists */}
         <div className="flex flex-col gap-4 overflow-y-auto pr-1 custom-scrollbar">
           <div className="grid grid-cols-3 gap-3">
@@ -399,7 +415,6 @@ export const Dashboard: React.FC = () => {
         </div>
 
         {/* Right Column: Map */}
-        {/* [수정] lg:h-auto, min-h-[600px] 제거 후 h-full 적용 */}
         <div className="bg-slate-900 rounded-xl overflow-hidden relative shadow-inner border border-slate-700 flex flex-col h-full">
           {/* Map Controls */}
           <div className="absolute top-0 left-0 right-0 z-20 p-3 flex gap-2 bg-gradient-to-b from-slate-900/90 to-transparent pointer-events-none">
