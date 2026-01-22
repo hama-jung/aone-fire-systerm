@@ -354,7 +354,7 @@ export const StoreManagement: React.FC = () => {
     { header: '상가명', accessor: 'name' },
     { header: '대표자', accessor: 'managerName' },
     { header: '대표자연락처', accessor: (s) => formatPhoneNumber(s.managerPhone) || '-' }, // Formatted
-    { header: '상태', accessor: (s) => <StatusBadge status={s.status} />, width: '80px' }, // Use StatusBadge component
+    { header: '상태', accessor: (s) => <StatusBadge status={s.status} />, width: '120px' }, // [수정] 너비 120px로 확장
   ];
 
   // --- Market Modal Columns ---

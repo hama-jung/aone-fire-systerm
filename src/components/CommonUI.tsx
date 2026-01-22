@@ -249,8 +249,9 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = ({
 };
 
 // --- Status Badge ---
+// [수정] whitespace-nowrap 추가, padding 조정, min-width 추가로 깨짐 방지
 export const StatusBadge: React.FC<{ status: string }> = ({ status }) => (
-  <span className={`px-2 py-0.5 rounded text-xs font-medium border ${
+  <span className={`inline-flex items-center justify-center px-3 py-1 rounded text-xs font-bold border whitespace-nowrap shadow-sm min-w-[64px] ${
     status === '사용' 
       ? 'bg-green-900/30 text-green-400 border-green-800' 
       : 'bg-red-900/30 text-red-400 border-red-800'

@@ -1,19 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  PageHeader, SearchFilterBar, InputGroup, SelectGroup, AddressInput,
-  Button, DataTable, Pagination, ActionBar, FormSection, FormRow, Column, UI_STYLES,
-  formatPhoneNumber, handlePhoneKeyDown, StatusBadge
+  PageHeader, SearchFilterBar, InputGroup, AddressInput,
+  Button, DataTable, Pagination, ActionBar, FormSection, FormRow, Column, UI_STYLES, ITEMS_PER_PAGE,
+  formatPhoneNumber, handlePhoneKeyDown, StatusBadge // Import StatusBadge
 } from '../components/CommonUI';
 import { Distributor } from '../types';
 import { DistributorAPI } from '../services/api';
 import { exportToExcel } from '../utils/excel';
-import { Upload } from 'lucide-react';
-import * as XLSX from 'xlsx';
-
-const ITEMS_PER_PAGE = 10;
 
 export const DistributorManagement: React.FC = () => {
-  const [view, setView] = useState<'list' | 'form' | 'excel'>('list');
+  const [view, setView] = useState<'list' | 'form'>('list');
   const [distributors, setDistributors] = useState<Distributor[]>([]);
   const [selectedDistributor, setSelectedDistributor] = useState<Distributor | null>(null);
   const [loading, setLoading] = useState(false);
@@ -27,11 +23,12 @@ export const DistributorManagement: React.FC = () => {
   const [searchManager, setSearchManager] = useState('');
   const [isFiltered, setIsFiltered] = useState(false);
 
-  // 폼 상태 (전체 객체로 관리)
+  // 폼 상태
   const [formData, setFormData] = useState<Partial<Distributor>>({});
   
-  // 관리 시장 목록 (수정 모드 전용 - Read Only)
+  // 관리 시장 추가 관련 상태 (수정 모드 전용)
   const [managedMarkets, setManagedMarkets] = useState<string[]>([]);
+  const [selectedMarketIndex, setSelectedMarketIndex] = useState<number | null>(null);
 
   // -- Data Fetching --
   const fetchData = async (overrides?: { address?: string, name?: string, managerName?: string }) => {
@@ -80,7 +77,6 @@ export const DistributorManagement: React.FC = () => {
   const handleEdit = (dist: Distributor) => {
     setSelectedDistributor(dist);
     setFormData({ ...dist });
-    // 관리 시장 목록은 DB에서 불러온 값을 그대로 표시 (수정 불가)
     setManagedMarkets(dist.managedMarkets || []);
     setView('form');
   };
@@ -93,7 +89,6 @@ export const DistributorManagement: React.FC = () => {
       '담당자전화': d.managerPhone,
       'E-mail': d.managerEmail,
       '주소': `${d.address} ${d.addressDetail}`,
-      '관리시장': (d.managedMarkets || []).join(', '),
       '메모': d.memo,
       '상태': d.status
     }));
@@ -120,7 +115,11 @@ export const DistributorManagement: React.FC = () => {
         return;
     }
     
-    // managedMarkets는 Form에서 수정하지 않고, DB의 상태를 유지하거나 API에서 재동기화됨
+    if (!formData.address) {
+        alert('주소를 입력해주세요.');
+        return;
+    }
+
     const newDist: Distributor = {
       id: selectedDistributor?.id || 0,
       name: formData.name!,
@@ -133,7 +132,7 @@ export const DistributorManagement: React.FC = () => {
       managerEmail: formData.managerEmail || '',
       memo: formData.memo || '',
       status: formData.status as '사용' | '미사용',
-      managedMarkets: managedMarkets // 기존 값 유지 (API에서 실제 관계 기준으로 덮어쓸 수 있음)
+      managedMarkets: managedMarkets
     };
 
     try {
@@ -146,6 +145,25 @@ export const DistributorManagement: React.FC = () => {
     }
   };
 
+  // 관리 시장 목록 핸들러
+  const handleRemoveMarket = () => {
+      if (selectedMarketIndex !== null) {
+          const newMarkets = [...managedMarkets];
+          newMarkets.splice(selectedMarketIndex, 1);
+          setManagedMarkets(newMarkets);
+          setSelectedMarketIndex(null);
+      } else {
+          alert('삭제할 시장을 선택해주세요.');
+      }
+  };
+
+  const handleAddMarketMock = () => {
+      const mockName = prompt("추가할 시장 이름을 입력하세요 (Mock):", "신규시장");
+      if (mockName) {
+          setManagedMarkets([...managedMarkets, mockName]);
+      }
+  };
+
   const handleCancel = () => { setView('list'); };
 
   // -- Pagination Logic --
@@ -156,40 +174,39 @@ export const DistributorManagement: React.FC = () => {
 
   // -- Table Columns --
   const columns: Column<Distributor>[] = [
-    { header: 'No', accessor: 'id', width: '60px' },
+    { header: 'No', accessor: (_, idx) => idx + 1, width: '60px' },
     { header: '총판명', accessor: 'name' },
     { header: '담당자명', accessor: 'managerName' },
-    { header: '담당자전화', accessor: (d) => formatPhoneNumber(d.managerPhone) || '-' },
-    { header: '관리시장수', accessor: (d) => `${(d.managedMarkets || []).length} 개`, width: '100px' },
+    { header: '담당자전화', accessor: (d) => formatPhoneNumber(d.managerPhone) },
+    { header: 'E-mail', accessor: 'managerEmail' },
     { header: '주소', accessor: (d) => `${d.address} ${d.addressDetail}` },
-    { header: '상태', accessor: (d) => <StatusBadge status={d.status} />, width: '80px' }
+    { header: '상태', accessor: (d) => <StatusBadge status={d.status} />, width: '100px' }
   ];
 
   // -- Views --
   if (view === 'form') {
     return (
       <>
-        <PageHeader title="총판 관리" />
+        <PageHeader title={selectedDistributor ? "총판 수정" : "총판 등록"} />
         <form onSubmit={handleSave}>
           <FormSection title={selectedDistributor ? "총판 수정" : "총판 등록"}>
-              {/* 총판명 (Full Width) - 필수 */}
-              <FormRow label="총판" required className="col-span-1 md:col-span-2">
+              {/* 총판명 (Full Width) */}
+              <FormRow label="총판" className="col-span-1 md:col-span-2">
                 <InputGroup 
                     value={formData.name || ''} 
                     onChange={e => setFormData({...formData, name: e.target.value})}
-                    placeholder="총판명을 입력하세요"
                 />
               </FormRow>
 
-              {/* 주소 (AddressInput) */}
+              {/* AddressInput 컴포넌트 사용 (공통 UI/규칙 적용) */}
               <div className="col-span-1 md:col-span-2">
                   <AddressInput 
                      label="주소"
                      required
                      address={formData.address || ''}
                      addressDetail={formData.addressDetail || ''}
-                     onAddressChange={(val) => setFormData({...formData, address: val})}
-                     onDetailChange={(val) => setFormData({...formData, addressDetail: val})}
+                     onAddressChange={(val) => setFormData(prev => ({...prev, address: val}))}
+                     onDetailChange={(val) => setFormData(prev => ({...prev, addressDetail: val}))}
                      onCoordinateChange={(lat, lng) => setFormData(prev => ({...prev, latitude: lat, longitude: lng}))}
                   />
               </div>
@@ -222,11 +239,11 @@ export const DistributorManagement: React.FC = () => {
               <FormRow label="담당자 전화">
                   <InputGroup 
                       value={formData.managerPhone || ''} 
-                      onChange={e => setFormData({...formData, managerPhone: e.target.value.replace(/[^0-9]/g, '')})}
+                      onChange={e => setFormData({...formData, managerPhone: e.target.value})}
                       onKeyDown={handlePhoneKeyDown}
                       inputMode="numeric"
-                      placeholder="숫자만 입력하세요"
-                      maxLength={11}
+                      placeholder="숫자만 입력"
+                      maxLength={13}
                   />
               </FormRow>
 
@@ -246,8 +263,8 @@ export const DistributorManagement: React.FC = () => {
                   />
               </FormRow>
 
-              {/* 총판 사용여부 (Full Width) */}
-              <FormRow label="총판 사용여부" required className="col-span-1 md:col-span-2">
+              {/* 총판 사용여부 (Full Width) - UI_STYLES.input 적용 */}
+              <FormRow label="총판 사용여부" className="col-span-1 md:col-span-2">
                 <div className={`${UI_STYLES.input} flex gap-4 text-slate-300 items-center`}>
                   <label className="flex items-center gap-2 cursor-pointer hover:text-white">
                     <input 
@@ -270,30 +287,26 @@ export const DistributorManagement: React.FC = () => {
                 </div>
               </FormRow>
 
-              {/* 관리 시장 (Full Width, 수정 모드일 때만 표시, 자동 연동) */}
+              {/* 관리 시장 추가 (Full Width, 수정 모드일 때만 표시) */}
               {selectedDistributor && (
-                  <FormRow label="관리 시장" className="col-span-1 md:col-span-2">
-                      <div className="flex flex-col gap-2 w-full">
-                          <div className="text-xs text-blue-400 mb-1">
-                              * 관리 시장은 '시장 관리' 메뉴에서 해당 총판을 선택하여 등록/수정하면 자동으로 연동됩니다.
-                          </div>
-                          <div className="border border-slate-600 bg-slate-800 rounded h-40 overflow-y-auto custom-scrollbar p-2">
-                              {managedMarkets.length === 0 && (
-                                  <div className="h-full flex items-center justify-center text-slate-500 text-sm">
-                                      등록된 관리 시장이 없습니다.
-                                  </div>
-                              )}
-                              <ul className="p-0 m-0 list-none space-y-1">
-                                  {managedMarkets.map((marketName, idx) => (
+                  <FormRow label="관리 시장 추가" className="col-span-1 md:col-span-2">
+                      <div className="flex gap-2 w-full">
+                          <div className="flex-1 border border-slate-600 bg-slate-800 rounded h-32 overflow-y-auto custom-scrollbar">
+                              <ul className="p-0 m-0 list-none">
+                                  {managedMarkets.map((market, idx) => (
                                       <li 
                                         key={idx}
-                                        className="flex items-center px-3 py-2 bg-slate-700/30 rounded border border-slate-700/50"
+                                        onClick={() => setSelectedMarketIndex(idx)}
+                                        className={`px-3 py-1.5 cursor-pointer text-sm ${selectedMarketIndex === idx ? 'bg-blue-600 text-white' : 'text-slate-300 hover:bg-slate-700'}`}
                                       >
-                                          <div className="w-2 h-2 rounded-full bg-blue-500 mr-3"></div>
-                                          <span className="text-slate-200 text-sm font-medium">{marketName}</span>
+                                          {market}
                                       </li>
                                   ))}
                               </ul>
+                          </div>
+                          <div className="flex flex-col gap-2">
+                              <Button type="button" variant="secondary" className="h-8" onClick={handleAddMarketMock}>검색</Button>
+                              <Button type="button" variant="secondary" className="h-8" onClick={handleRemoveMarket}>삭제</Button>
                           </div>
                       </div>
                   </FormRow>
@@ -317,12 +330,12 @@ export const DistributorManagement: React.FC = () => {
     );
   }
 
-  // --- View: List ---
-  // ... (Excel Upload View & List View remain largely the same, kept simple for brevity)
+  // -- List View --
   return (
     <>
       <PageHeader title="총판 관리" />
       
+      {/* 검색 필터 */}
       <SearchFilterBar onSearch={handleSearch} onReset={handleReset} isFiltered={isFiltered}>
         <InputGroup 
             label="주소" 
@@ -341,10 +354,11 @@ export const DistributorManagement: React.FC = () => {
         />
       </SearchFilterBar>
 
+      {/* 리스트 헤더 및 버튼 */}
       <div className="flex justify-between items-center mb-2">
          <span className="text-sm text-slate-400">
            전체 <strong className="text-blue-400">{distributors.length}</strong> 건 
-           (페이지 {currentPage}/{totalPages || 1})
+           (페이지 {currentPage})
          </span>
          <ActionBar onRegister={handleRegister} onExcel={handleExcel} />
       </div>

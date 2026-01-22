@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   PageHeader, SearchFilterBar, InputGroup, SelectGroup, 
   Button, DataTable, Pagination, ActionBar, FormSection, FormRow, Column, Modal, UI_STYLES,
-  formatPhoneNumber, handlePhoneKeyDown, ITEMS_PER_PAGE // Import global constant
+  formatPhoneNumber, handlePhoneKeyDown, ITEMS_PER_PAGE, StatusBadge // Import StatusBadge
 } from '../components/CommonUI';
 import { User, RoleItem } from '../types';
 import { UserAPI, RoleAPI, CommonAPI } from '../services/api';
@@ -15,7 +15,6 @@ const ID_REGEX = /^[A-Za-z0-9]{6,12}$/;
 // 영문, 숫자, 특수문자 포함 6~12자
 const PW_REGEX = /^(?=.*[A-Za-z])(?=.*\d)(?=.*[!@#$%^&*(),.?":{}|<>]).{6,12}$/;
 
-// ... (rest of the file remains exactly the same, using ITEMS_PER_PAGE imported above) ...
 // 업체 목록 아이템 인터페이스
 interface CompanyItem {
   id: string;
@@ -315,11 +314,7 @@ export const UserManagement: React.FC = () => {
       accessor: (user) => formatPhoneNumber(user.phone) // Format phone number
     },
     { header: '역할', accessor: 'role' },
-    { header: '상태', accessor: (user: User) => (
-      <span className={`px-2 py-0.5 rounded text-xs ${user.status === '사용' ? 'bg-green-900/50 text-green-300 border border-green-800' : 'bg-red-900/50 text-red-300 border border-red-800'}`}>
-        {user.status}
-      </span>
-    )},
+    { header: '상태', accessor: (user: User) => <StatusBadge status={user.status} />, width: '100px' },
   ];
 
   const modalColumns: Column<CompanyItem>[] = [
