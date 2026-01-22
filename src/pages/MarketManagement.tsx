@@ -296,7 +296,7 @@ export const MarketManagement: React.FC = () => {
 
   const columns: Column<Market>[] = [
     { header: 'No', accessor: 'id', width: '60px' },
-    { header: '총판', accessor: (m) => m.distributorName || '-', width: '120px' },
+    { header: '총판', accessor: (m) => m.distributorName || '-', width: '150px' },
     { header: '시장명', accessor: 'name' },
     { header: '주소', accessor: (m) => `${m.address} ${m.addressDetail || ''}` },
     { header: '담당자명', accessor: 'managerName' },
@@ -410,7 +410,14 @@ export const MarketManagement: React.FC = () => {
                 />
               </FormRow>
 
-              {/* SMS 관리 섹션 (화재/고장) - [수정] col-span 제거하여 나란히 배치 */}
+              <FormRow label="비고">
+                <InputGroup 
+                  value={formData.memo || ''} 
+                  onChange={(e) => setFormData({...formData, memo: e.target.value})} 
+                />
+              </FormRow>
+
+              {/* SMS 관리 섹션 (화재/고장) - 병렬 배치 */}
               <FormRow label="화재발생시 SMS">
                  <div className="flex flex-col gap-2 w-full">
                     <div className="bg-slate-900 border border-slate-600 rounded p-2 h-24 overflow-y-auto custom-scrollbar">
@@ -429,7 +436,6 @@ export const MarketManagement: React.FC = () => {
                             onChange={(e) => setTempSmsFire(e.target.value.replace(/[^0-9]/g, ''))}
                             maxLength={11}
                         />
-                        {/* [수정] whitespace-nowrap 추가 */}
                         <Button type="button" variant="secondary" onClick={() => addSms('fire')} icon={<Plus size={16}/>} className="whitespace-nowrap">추가</Button>
                     </div>
                  </div>
@@ -453,7 +459,6 @@ export const MarketManagement: React.FC = () => {
                             onChange={(e) => setTempSmsFault(e.target.value.replace(/[^0-9]/g, ''))}
                             maxLength={11}
                         />
-                        {/* [수정] whitespace-nowrap 추가 */}
                         <Button type="button" variant="secondary" onClick={() => addSms('fault')} icon={<Plus size={16}/>} className="whitespace-nowrap">추가</Button>
                     </div>
                  </div>
@@ -497,13 +502,6 @@ export const MarketManagement: React.FC = () => {
                        신규 등록 시에는 이미지를 첨부할 수 없습니다. 등록 후 수정 단계에서 진행해 주세요.
                     </div>
                  )}
-              </FormRow>
-
-              <FormRow label="비고" className="col-span-1 md:col-span-2">
-                <InputGroup 
-                  value={formData.memo || ''} 
-                  onChange={(e) => setFormData({...formData, memo: e.target.value})} 
-                />
               </FormRow>
 
               {/* --- 설정 플래그 섹션 --- */}

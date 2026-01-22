@@ -227,13 +227,14 @@ export const CommonAPI = {
 export const MarketAPI = {
   getList: async (params?: { name?: string, address?: string, managerName?: string }) => {
     try {
-      let query = supabase.from('markets').select('*, distributors(name)').order('id', { ascending: false });
+      // 1. 시장 목록 조회 (조인 없이 기본 조회)
+      let query = supabase.from('markets').select('*').order('id', { ascending: false });
       
       if (params?.name) query = query.ilike('name', `%${params.name}%`);
       if (params?.address) query = query.ilike('address', `%${params.address}%`);
       if (params?.managerName) query = query.ilike('managerName', `%${params.managerName}%`);
 
-      const { data, error } = await query;
+      const { data: markets, error } = await query;
       
       if (error) {
          console.warn(`Supabase read error on markets:`, error.message);
@@ -241,10 +242,23 @@ export const MarketAPI = {
          return MOCK_MARKETS.map(m => ({...m, distributorName: '미창'}));
       }
       
-      if (data) {
-        return data.map((m: any) => ({
+      if (markets && markets.length > 0) {
+        // 2. 총판 ID 수집
+        const distIds = Array.from(new Set(markets.map(m => m.distributorId).filter(id => id != null)));
+        
+        // 3. 총판 정보 조회 (수동 매핑)
+        let distMap: Record<number, string> = {};
+        if (distIds.length > 0) {
+            const { data: dists } = await supabase.from('distributors').select('id, name').in('id', distIds);
+            if (dists) {
+                dists.forEach(d => { distMap[d.id] = d.name; });
+            }
+        }
+
+        // 4. 데이터 매핑 반환
+        return markets.map((m: any) => ({
           ...m,
-          distributorName: m.distributors?.name || '-'
+          distributorName: m.distributorId ? (distMap[m.distributorId] || '-') : '-'
         })) as Market[];
       }
       return [];
@@ -260,9 +274,9 @@ export const MarketAPI = {
         oldDistributorId = data?.distributorId;
     }
 
-    // 2. 시장 데이터 저장 (distributorName은 DB컬럼이 아니므로 제외 처리 필요하지만, supabaseSaver에서 id제외 나머지를 보내므로 주의)
+    // 2. 시장 데이터 저장 (distributorName은 DB컬럼이 아니므로 제외)
     const { distributorName, ...dbData } = market;
-    const savedMarket = await supabaseSaver('markets', dbData as Market); // Casting back to Market for return type match
+    const savedMarket = await supabaseSaver('markets', dbData as Market);
 
     // 3. 총판-시장 동기화 (distributorId가 변경되었을 수 있으므로)
     if (savedMarket.distributorId) {
@@ -280,7 +294,7 @@ export const MarketAPI = {
             .eq('marketId', savedMarket.id);
     }
 
-    return { ...savedMarket, distributorName }; // Return with distributorName for UI consistency if needed
+    return { ...savedMarket, distributorName };
   },
   delete: async (id: number) => {
     // 삭제 전 해당 시장의 총판 ID 확인

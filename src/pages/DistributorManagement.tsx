@@ -2,17 +2,18 @@ import React, { useState, useEffect } from 'react';
 import { 
   PageHeader, SearchFilterBar, InputGroup, SelectGroup, AddressInput,
   Button, DataTable, Pagination, ActionBar, FormSection, FormRow, Column, UI_STYLES,
-  formatPhoneNumber, handlePhoneKeyDown, MarketSearchModal, StatusBadge // Import StatusBadge
+  formatPhoneNumber, handlePhoneKeyDown, StatusBadge
 } from '../components/CommonUI';
-import { Distributor, Market } from '../types';
+import { Distributor } from '../types';
 import { DistributorAPI } from '../services/api';
 import { exportToExcel } from '../utils/excel';
-import { Search, X } from 'lucide-react';
+import { Upload } from 'lucide-react';
+import * as XLSX from 'xlsx';
 
 const ITEMS_PER_PAGE = 10;
 
 export const DistributorManagement: React.FC = () => {
-  const [view, setView] = useState<'list' | 'form'>('list');
+  const [view, setView] = useState<'list' | 'form' | 'excel'>('list');
   const [distributors, setDistributors] = useState<Distributor[]>([]);
   const [selectedDistributor, setSelectedDistributor] = useState<Distributor | null>(null);
   const [loading, setLoading] = useState(false);
@@ -29,9 +30,8 @@ export const DistributorManagement: React.FC = () => {
   // 폼 상태 (전체 객체로 관리)
   const [formData, setFormData] = useState<Partial<Distributor>>({});
   
-  // 관리 시장 추가 관련 상태
+  // 관리 시장 목록 (수정 모드 전용 - Read Only)
   const [managedMarkets, setManagedMarkets] = useState<string[]>([]);
-  const [isMarketModalOpen, setIsMarketModalOpen] = useState(false); // Modal state
 
   // -- Data Fetching --
   const fetchData = async (overrides?: { address?: string, name?: string, managerName?: string }) => {
@@ -80,6 +80,7 @@ export const DistributorManagement: React.FC = () => {
   const handleEdit = (dist: Distributor) => {
     setSelectedDistributor(dist);
     setFormData({ ...dist });
+    // 관리 시장 목록은 DB에서 불러온 값을 그대로 표시 (수정 불가)
     setManagedMarkets(dist.managedMarkets || []);
     setView('form');
   };
@@ -92,6 +93,7 @@ export const DistributorManagement: React.FC = () => {
       '담당자전화': d.managerPhone,
       'E-mail': d.managerEmail,
       '주소': `${d.address} ${d.addressDetail}`,
+      '관리시장': (d.managedMarkets || []).join(', '),
       '메모': d.memo,
       '상태': d.status
     }));
@@ -118,8 +120,7 @@ export const DistributorManagement: React.FC = () => {
         return;
     }
     
-    // 주소 필수 입력 체크 로직 제거됨 (선택 사항)
-
+    // managedMarkets는 Form에서 수정하지 않고, DB의 상태를 유지하거나 API에서 재동기화됨
     const newDist: Distributor = {
       id: selectedDistributor?.id || 0,
       name: formData.name!,
@@ -132,7 +133,7 @@ export const DistributorManagement: React.FC = () => {
       managerEmail: formData.managerEmail || '',
       memo: formData.memo || '',
       status: formData.status as '사용' | '미사용',
-      managedMarkets: managedMarkets
+      managedMarkets: managedMarkets // 기존 값 유지 (API에서 실제 관계 기준으로 덮어쓸 수 있음)
     };
 
     try {
@@ -143,28 +144,6 @@ export const DistributorManagement: React.FC = () => {
     } catch (e) {
       alert('저장 실패');
     }
-  };
-
-  // --- Market Modal Handlers ---
-  const handleOpenMarketModal = () => {
-    setIsMarketModalOpen(true);
-  };
-
-  const handleMarketSelect = (market: Market) => {
-    // 중복 체크
-    if (managedMarkets.includes(market.name)) {
-        alert('이미 추가된 시장입니다.');
-        return;
-    }
-    // 시장 추가
-    setManagedMarkets([...managedMarkets, market.name]);
-    setIsMarketModalOpen(false);
-  };
-
-  const handleRemoveMarket = (index: number) => {
-      const newMarkets = [...managedMarkets];
-      newMarkets.splice(index, 1);
-      setManagedMarkets(newMarkets);
   };
 
   const handleCancel = () => { setView('list'); };
@@ -180,8 +159,8 @@ export const DistributorManagement: React.FC = () => {
     { header: 'No', accessor: 'id', width: '60px' },
     { header: '총판명', accessor: 'name' },
     { header: '담당자명', accessor: 'managerName' },
-    { header: '담당자전화', accessor: (d) => formatPhoneNumber(d.managerPhone) || '-' }, // Formatted
-    { header: 'E-mail', accessor: 'managerEmail' },
+    { header: '담당자전화', accessor: (d) => formatPhoneNumber(d.managerPhone) || '-' },
+    { header: '관리시장수', accessor: (d) => `${(d.managedMarkets || []).length} 개`, width: '100px' },
     { header: '주소', accessor: (d) => `${d.address} ${d.addressDetail}` },
     { header: '상태', accessor: (d) => <StatusBadge status={d.status} />, width: '80px' }
   ];
@@ -202,7 +181,7 @@ export const DistributorManagement: React.FC = () => {
                 />
               </FormRow>
 
-              {/* 주소 (AddressInput) - 선택 항목 (required 속성 제거) */}
+              {/* 주소 (AddressInput) */}
               <div className="col-span-1 md:col-span-2">
                   <AddressInput 
                      label="주소"
@@ -244,8 +223,8 @@ export const DistributorManagement: React.FC = () => {
                   <InputGroup 
                       value={formData.managerPhone || ''} 
                       onChange={e => setFormData({...formData, managerPhone: e.target.value.replace(/[^0-9]/g, '')})}
-                      onKeyDown={handlePhoneKeyDown} // [NEW] 숫자 외 키 차단
-                      inputMode="numeric" // [NEW] 모바일 키패드
+                      onKeyDown={handlePhoneKeyDown}
+                      inputMode="numeric"
                       placeholder="숫자만 입력하세요"
                       maxLength={11}
                   />
@@ -267,7 +246,7 @@ export const DistributorManagement: React.FC = () => {
                   />
               </FormRow>
 
-              {/* 총판 사용여부 (Full Width) - 필수 */}
+              {/* 총판 사용여부 (Full Width) */}
               <FormRow label="총판 사용여부" required className="col-span-1 md:col-span-2">
                 <div className={`${UI_STYLES.input} flex gap-4 text-slate-300 items-center`}>
                   <label className="flex items-center gap-2 cursor-pointer hover:text-white">
@@ -291,29 +270,27 @@ export const DistributorManagement: React.FC = () => {
                 </div>
               </FormRow>
 
-              {/* 관리 시장 추가 (Full Width, 수정 모드일 때만 표시) */}
+              {/* 관리 시장 (Full Width, 수정 모드일 때만 표시, 자동 연동) */}
               {selectedDistributor && (
-                  <FormRow label="관리 시장 추가" className="col-span-1 md:col-span-2">
-                      <div className="flex flex-col gap-2 max-w-md">
-                          <div className="flex justify-end">
-                              <Button type="button" variant="secondary" className="h-8" onClick={handleOpenMarketModal} icon={<Search size={14}/>}>시장 검색 추가</Button>
+                  <FormRow label="관리 시장" className="col-span-1 md:col-span-2">
+                      <div className="flex flex-col gap-2 w-full">
+                          <div className="text-xs text-blue-400 mb-1">
+                              * 관리 시장은 '시장 관리' 메뉴에서 해당 총판을 선택하여 등록/수정하면 자동으로 연동됩니다.
                           </div>
-                          <div className="border border-slate-600 bg-slate-800 rounded h-32 overflow-y-auto custom-scrollbar p-2">
-                              {managedMarkets.length === 0 && <span className="text-slate-500 text-sm">등록된 시장이 없습니다.</span>}
+                          <div className="border border-slate-600 bg-slate-800 rounded h-40 overflow-y-auto custom-scrollbar p-2">
+                              {managedMarkets.length === 0 && (
+                                  <div className="h-full flex items-center justify-center text-slate-500 text-sm">
+                                      등록된 관리 시장이 없습니다.
+                                  </div>
+                              )}
                               <ul className="p-0 m-0 list-none space-y-1">
                                   {managedMarkets.map((marketName, idx) => (
                                       <li 
                                         key={idx}
-                                        className="flex justify-between items-center px-2 py-1 bg-slate-700/30 rounded border border-slate-700/50"
+                                        className="flex items-center px-3 py-2 bg-slate-700/30 rounded border border-slate-700/50"
                                       >
-                                          <span className="text-slate-200 text-sm">{marketName}</span>
-                                          <button 
-                                            type="button" 
-                                            onClick={() => handleRemoveMarket(idx)}
-                                            className="text-red-400 hover:text-red-300 p-1 rounded hover:bg-slate-700 transition-colors"
-                                          >
-                                            <X size={14} />
-                                          </button>
+                                          <div className="w-2 h-2 rounded-full bg-blue-500 mr-3"></div>
+                                          <span className="text-slate-200 text-sm font-medium">{marketName}</span>
                                       </li>
                                   ))}
                               </ul>
@@ -336,23 +313,16 @@ export const DistributorManagement: React.FC = () => {
              <Button type="button" variant="secondary" onClick={handleCancel} className="w-32">취소</Button>
           </div>
         </form>
-
-        {/* Common Market Search Modal */}
-        <MarketSearchModal 
-          isOpen={isMarketModalOpen} 
-          onClose={() => setIsMarketModalOpen(false)} 
-          onSelect={handleMarketSelect} 
-        />
       </>
     );
   }
 
-  // -- List View --
+  // --- View: List ---
+  // ... (Excel Upload View & List View remain largely the same, kept simple for brevity)
   return (
     <>
       <PageHeader title="총판 관리" />
       
-      {/* 검색 필터 */}
       <SearchFilterBar onSearch={handleSearch} onReset={handleReset} isFiltered={isFiltered}>
         <InputGroup 
             label="주소" 
@@ -371,7 +341,6 @@ export const DistributorManagement: React.FC = () => {
         />
       </SearchFilterBar>
 
-      {/* 리스트 헤더 및 버튼 */}
       <div className="flex justify-between items-center mb-2">
          <span className="text-sm text-slate-400">
            전체 <strong className="text-blue-400">{distributors.length}</strong> 건 
