@@ -7,7 +7,7 @@ import {
 import { Market, Distributor } from '../types';
 import { MarketAPI, DistributorAPI } from '../services/api';
 import { exportToExcel } from '../utils/excel';
-import { X, Paperclip, Upload } from 'lucide-react';
+import { X, Paperclip, Upload, Plus, Trash2 } from 'lucide-react';
 
 const ITEMS_PER_PAGE = 10;
 
@@ -40,6 +40,8 @@ export const MarketManagement: React.FC = () => {
   // SMS 목록 관리 (Edit Mode 전용)
   const [smsFireList, setSmsFireList] = useState<string[]>([]);
   const [smsFaultList, setSmsFaultList] = useState<string[]>([]);
+  const [tempSmsFire, setTempSmsFire] = useState('');
+  const [tempSmsFault, setTempSmsFault] = useState('');
 
   // 초기 데이터 로드 (시장 목록 + 총판 목록)
   const initData = async () => {
@@ -104,7 +106,7 @@ export const MarketManagement: React.FC = () => {
   // --- Form Handlers ---
   const handleRegister = () => { 
     setSelectedMarket(null);
-    // 폼 초기화
+    // 폼 초기화 (기본 설정값 포함)
     setFormData({
       distributorId: undefined,
       name: '',
@@ -116,19 +118,22 @@ export const MarketManagement: React.FC = () => {
       managerPhone: '',
       managerEmail: '',
       memo: '',
+      // 설정 플래그 초기값
       enableMarketSms: '사용',
       enableStoreSms: '사용',
       enableMultiMedia: '사용',
       multiMediaType: '복합',
-      usageStatus: '사용',
+      usageStatus: '사용', // [중요] 시장 사용여부
       enableDeviceFaultSms: '사용',
       enableCctvUrl: '사용',
       status: 'Normal'
     });
     setSmsFireList([]);
     setSmsFaultList([]);
+    setTempSmsFire('');
+    setTempSmsFault('');
     setMapImageFile(null); 
-    if (fileInputRef.current) fileInputRef.current.value = ''; // 파일 입력 초기화
+    if (fileInputRef.current) fileInputRef.current.value = ''; 
     setView('form'); 
   };
   
@@ -137,12 +142,37 @@ export const MarketManagement: React.FC = () => {
     setFormData({ ...market });
     setSmsFireList(market.smsFire || []);
     setSmsFaultList(market.smsFault || []);
+    setTempSmsFire('');
+    setTempSmsFault('');
     setMapImageFile(null);
-    if (fileInputRef.current) fileInputRef.current.value = ''; // 파일 입력 초기화
+    if (fileInputRef.current) fileInputRef.current.value = '';
     setView('form'); 
   };
+
+  // SMS 목록 관리 핸들러
+  const addSms = (type: 'fire' | 'fault') => {
+    if (type === 'fire') {
+        if (tempSmsFire && !smsFireList.includes(tempSmsFire)) {
+            setSmsFireList([...smsFireList, tempSmsFire]);
+            setTempSmsFire('');
+        }
+    } else {
+        if (tempSmsFault && !smsFaultList.includes(tempSmsFault)) {
+            setSmsFaultList([...smsFaultList, tempSmsFault]);
+            setTempSmsFault('');
+        }
+    }
+  };
+
+  const removeSms = (type: 'fire' | 'fault', index: number) => {
+    if (type === 'fire') {
+        setSmsFireList(smsFireList.filter((_, i) => i !== index));
+    } else {
+        setSmsFaultList(smsFaultList.filter((_, i) => i !== index));
+    }
+  };
   
-  // 파일 선택 버튼 클릭 핸들러 (이미지 존재 시 차단)
+  // 파일 선택 버튼 클릭 핸들러
   const handleFileSelectClick = () => {
     if (formData.mapImage || mapImageFile) {
       alert("등록된 이미지를 삭제해 주세요.");
@@ -157,21 +187,18 @@ export const MarketManagement: React.FC = () => {
     }
   };
 
-  // 이미지 삭제 처리 (X 버튼)
   const handleRemoveFile = () => {
     if (confirm("이미지를 삭제하시겠습니까?")) {
-        setFormData({ ...formData, mapImage: undefined }); // DB URL 제거
-        setMapImageFile(null); // 새로 선택한 파일 제거
-        if (fileInputRef.current) fileInputRef.current.value = ''; // input value 초기화
+        setFormData({ ...formData, mapImage: undefined });
+        setMapImageFile(null);
+        if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
 
-  // 이미지 파일명 추출
   const getFileName = () => {
      if (mapImageFile) return mapImageFile.name;
      if (formData.mapImage) {
         try {
-           // URL에서 파일명만 추출 및 디코딩
            const url = new URL(formData.mapImage);
            return decodeURIComponent(url.pathname.split('/').pop() || 'image.jpg');
         } catch {
@@ -181,9 +208,7 @@ export const MarketManagement: React.FC = () => {
      return '';
   };
 
-  // 이미지 다운로드 핸들러
   const handleDownload = async () => {
-    // 1. 방금 선택한 로컬 파일이 있는 경우
     if (mapImageFile) {
         const url = URL.createObjectURL(mapImageFile);
         const a = document.createElement('a');
@@ -195,24 +220,20 @@ export const MarketManagement: React.FC = () => {
         URL.revokeObjectURL(url);
         return;
     }
-
-    // 2. 서버에 저장된 이미지가 있는 경우
     if (formData.mapImage) {
         try {
             const response = await fetch(formData.mapImage);
-            if (!response.ok) throw new Error('Network response was not ok');
+            if (!response.ok) throw new Error('Network error');
             const blob = await response.blob();
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = getFileName(); // URL에서 추출한 파일명 사용
+            a.download = getFileName();
             document.body.appendChild(a);
             a.click();
             a.remove();
             window.URL.revokeObjectURL(url);
         } catch (e) {
-            console.error("Download failed", e);
-            // CORS 등으로 실패 시 새 탭으로 열기 (기존 동작)
             window.open(formData.mapImage, '_blank');
         }
     }
@@ -221,33 +242,34 @@ export const MarketManagement: React.FC = () => {
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // 필수값 검증
     if (!formData.distributorId) { alert('총판을 선택해주세요.'); return; }
     if (!formData.name) { alert('시장명을 입력해주세요.'); return; }
     if (!formData.address) { alert('주소를 입력해주세요.'); return; }
 
+    // 사용여부 '미사용' 변경 시 경고
+    if (selectedMarket && selectedMarket.usageStatus === '사용' && formData.usageStatus === '미사용') {
+        if (!confirm('시장 사용여부를 [미사용]으로 변경하면,\n해당 시장에 속한 "모든 상가"도 [미사용] 처리됩니다.\n계속하시겠습니까?')) {
+            return;
+        }
+    }
+
     try {
-      // 1. 이미지 업로드 처리
-      let uploadedImageUrl = formData.mapImage; // 기존 이미지 URL 유지
+      let uploadedImageUrl = formData.mapImage;
       if (mapImageFile) {
         uploadedImageUrl = await MarketAPI.uploadMapImage(mapImageFile);
       }
 
-      // 2. 선택 입력 항목의 빈 문자열 처리
       const cleanFormData = { ...formData };
+      // 빈 문자열 정리
       if (cleanFormData.latitude === '') cleanFormData.latitude = undefined;
       if (cleanFormData.longitude === '') cleanFormData.longitude = undefined;
-      if (cleanFormData.managerName === '') cleanFormData.managerName = undefined;
-      if (cleanFormData.managerPhone === '') cleanFormData.managerPhone = undefined;
-      if (cleanFormData.managerEmail === '') cleanFormData.managerEmail = undefined;
-      if (cleanFormData.memo === '') cleanFormData.memo = undefined;
-
+      
       const newMarket: Market = {
         ...cleanFormData as Market,
         id: selectedMarket?.id || 0,
         smsFire: smsFireList,
         smsFault: smsFaultList,
-        mapImage: uploadedImageUrl, // 최종 이미지 URL 적용
+        mapImage: uploadedImageUrl,
         status: selectedMarket?.status || 'Normal',
       };
 
@@ -268,39 +290,19 @@ export const MarketManagement: React.FC = () => {
       '주소': `${m.address} ${m.addressDetail || ''}`.trim(),
       '담당자명': m.managerName,
       '담당자연락처': m.managerPhone,
-      '상태': m.status === 'Normal' ? '정상' : (m.status === 'Fire' ? '화재' : '장애')
+      '상태': m.usageStatus // 사용여부 출력
     }));
     exportToExcel(excelData, '시장관리_목록');
   };
 
   const columns: Column<Market>[] = [
     { header: 'No', accessor: 'id', width: '60px' },
-    { header: '총판', accessor: (m) => m.distributorName || '-', width: '120px' }, // 총판 컬럼 추가
+    { header: '총판', accessor: (m) => m.distributorName || '-', width: '120px' },
     { header: '시장명', accessor: 'name' },
     { header: '주소', accessor: (m) => `${m.address} ${m.addressDetail || ''}` },
     { header: '담당자명', accessor: 'managerName' },
     { header: '담당자연락처', accessor: (m) => formatPhoneNumber(m.managerPhone) || '-' },
-    { header: '상태', accessor: (m: Market) => {
-        let statusText: string = m.status;
-        let badgeClass = 'bg-slate-700 text-slate-400 border-slate-600';
-        
-        if (m.status === 'Normal') {
-            statusText = '정상';
-            badgeClass = 'bg-green-900/30 text-green-400 border-green-800';
-        } else if (m.status === 'Fire') {
-            statusText = '화재';
-            badgeClass = 'bg-red-900/30 text-red-400 border-red-800 animate-pulse';
-        } else if (m.status === 'Error') {
-            statusText = '장애';
-            badgeClass = 'bg-orange-900/30 text-orange-400 border-orange-800';
-        }
-
-        return (
-            <span className={`px-2 py-0.5 rounded text-xs font-medium border ${badgeClass}`}>
-                {statusText}
-            </span>
-        );
-    }, width: '80px' },
+    { header: '상태', accessor: (m: Market) => <StatusBadge status={m.usageStatus || '사용'} />, width: '80px' }, // usageStatus 기준 배지
   ];
 
   // -- Pagination Logic --
@@ -308,6 +310,31 @@ export const MarketManagement: React.FC = () => {
   const indexOfFirstItem = indexOfLastItem - ITEMS_PER_PAGE;
   const currentItems = markets.slice(indexOfFirstItem, indexOfLastItem);
   const totalPages = Math.ceil(markets.length / ITEMS_PER_PAGE);
+
+  // Common Radio Group Renderer
+  const renderRadioGroup = (
+    label: string, 
+    field: keyof Market, 
+    options: string[] = ['사용', '미사용']
+  ) => (
+    <FormRow label={label}>
+        <div className={`${UI_STYLES.input} flex gap-6 items-center`}>
+            {options.map((opt) => (
+                <label key={opt} className="flex items-center gap-2 cursor-pointer hover:text-white">
+                    <input 
+                        type="radio" 
+                        name={field} 
+                        value={opt} 
+                        checked={formData[field] === opt} 
+                        onChange={() => setFormData({...formData, [field]: opt as any})}
+                        className="accent-blue-500 w-4 h-4" 
+                    />
+                    <span>{opt}</span>
+                </label>
+            ))}
+        </div>
+    </FormRow>
+  );
 
   if (view === 'form') {
     return (
@@ -331,7 +358,6 @@ export const MarketManagement: React.FC = () => {
                 />
               </FormRow>
               
-              {/* AddressInput 컴포넌트 사용 (공통 UI/규칙 적용) */}
               <div className="col-span-1 md:col-span-2">
                 <AddressInput 
                    label="주소"
@@ -385,11 +411,51 @@ export const MarketManagement: React.FC = () => {
                 />
               </FormRow>
 
-              <FormRow label="비고" className="col-span-1 md:col-span-2">
-                <InputGroup 
-                  value={formData.memo || ''} 
-                  onChange={(e) => setFormData({...formData, memo: e.target.value})} 
-                />
+              {/* SMS 관리 섹션 (화재/고장) */}
+              <FormRow label="화재발생시 SMS" className="col-span-1 md:col-span-2">
+                 <div className="flex flex-col gap-2 max-w-md">
+                    <div className="bg-slate-900 border border-slate-600 rounded p-2 h-24 overflow-y-auto custom-scrollbar">
+                        {smsFireList.length === 0 && <span className="text-slate-500 text-sm">등록된 번호가 없습니다.</span>}
+                        {smsFireList.map((num, idx) => (
+                            <div key={idx} className="flex justify-between items-center py-1 px-2 border-b border-slate-700/50 last:border-0">
+                                <span className="text-slate-200">{num}</span>
+                                <button type="button" onClick={() => removeSms('fire', idx)} className="text-red-400 hover:text-red-300"><Trash2 size={14}/></button>
+                            </div>
+                        ))}
+                    </div>
+                    <div className="flex gap-2">
+                        <InputGroup 
+                            placeholder="휴대폰 번호 입력" 
+                            value={tempSmsFire} 
+                            onChange={(e) => setTempSmsFire(e.target.value.replace(/[^0-9]/g, ''))}
+                            maxLength={11}
+                        />
+                        <Button type="button" variant="secondary" onClick={() => addSms('fire')} icon={<Plus size={16}/>}>추가</Button>
+                    </div>
+                 </div>
+              </FormRow>
+
+              <FormRow label="고장발생시 SMS" className="col-span-1 md:col-span-2">
+                 <div className="flex flex-col gap-2 max-w-md">
+                    <div className="bg-slate-900 border border-slate-600 rounded p-2 h-24 overflow-y-auto custom-scrollbar">
+                        {smsFaultList.length === 0 && <span className="text-slate-500 text-sm">등록된 번호가 없습니다.</span>}
+                        {smsFaultList.map((num, idx) => (
+                            <div key={idx} className="flex justify-between items-center py-1 px-2 border-b border-slate-700/50 last:border-0">
+                                <span className="text-slate-200">{num}</span>
+                                <button type="button" onClick={() => removeSms('fault', idx)} className="text-red-400 hover:text-red-300"><Trash2 size={14}/></button>
+                            </div>
+                        ))}
+                    </div>
+                    <div className="flex gap-2">
+                        <InputGroup 
+                            placeholder="휴대폰 번호 입력" 
+                            value={tempSmsFault} 
+                            onChange={(e) => setTempSmsFault(e.target.value.replace(/[^0-9]/g, ''))}
+                            maxLength={11}
+                        />
+                        <Button type="button" variant="secondary" onClick={() => addSms('fault')} icon={<Plus size={16}/>}>추가</Button>
+                    </div>
+                 </div>
               </FormRow>
 
               {/* 시장지도 이미지 (수정 모드일 때만 활성화) */}
@@ -407,7 +473,6 @@ export const MarketManagement: React.FC = () => {
                           <Button type="button" variant="secondary" onClick={handleFileSelectClick} icon={<Upload size={16} />}>
                              파일 선택
                           </Button>
-                          
                           {(formData.mapImage || mapImageFile) && (
                              <div className="flex items-center gap-2 p-2 bg-slate-700/50 rounded border border-slate-600">
                                 <Paperclip size={14} className="text-slate-400" />
@@ -424,7 +489,7 @@ export const MarketManagement: React.FC = () => {
                              </div>
                           )}
                        </div>
-                       <p className="text-xs text-slate-500 mt-1">최대 10MB, jpg/png/gif 지원 (수정 시에만 가능)</p>
+                       <p className="text-xs text-slate-500 mt-1">최대 10MB, jpg/png/gif 지원</p>
                     </div>
                  ) : (
                     <div className="flex items-center h-[42px] px-3 bg-slate-800/50 border border-slate-700 rounded text-slate-500 text-sm italic w-full">
@@ -432,6 +497,54 @@ export const MarketManagement: React.FC = () => {
                     </div>
                  )}
               </FormRow>
+
+              <FormRow label="비고" className="col-span-1 md:col-span-2">
+                <InputGroup 
+                  value={formData.memo || ''} 
+                  onChange={(e) => setFormData({...formData, memo: e.target.value})} 
+                />
+              </FormRow>
+
+              {/* --- 설정 플래그 섹션 --- */}
+              <div className="col-span-1 md:col-span-2 border-t border-slate-700 my-4"></div>
+              
+              {renderRadioGroup('시장전체 문자전송여부', 'enableMarketSms')}
+              {renderRadioGroup('상가주인 문자전송여부', 'enableStoreSms')}
+              {renderRadioGroup('다매체전송 여부', 'enableMultiMedia')}
+              {renderRadioGroup('다매체 타입', 'multiMediaType', ['복합', '열', '연기'])}
+              {renderRadioGroup('기기고장 문자전송여부', 'enableDeviceFaultSms')}
+              {renderRadioGroup('화재문자시 CCTV URL 포함여부', 'enableCctvUrl')}
+              
+              <div className="col-span-1 md:col-span-2 border-t border-slate-700 my-4"></div>
+
+              {/* [중요] 시장 사용 여부 (변경 시 상가 일괄 처리 로직 연결됨) */}
+              <FormRow label="시장 사용여부" className="col-span-1 md:col-span-2">
+                  <div className={`${UI_STYLES.input} flex gap-6 items-center bg-slate-900/50 border-blue-500/30`}>
+                      <label className="flex items-center gap-2 cursor-pointer hover:text-white">
+                          <input 
+                              type="radio" 
+                              name="usageStatus" 
+                              value="사용" 
+                              checked={formData.usageStatus === '사용'} 
+                              onChange={() => setFormData({...formData, usageStatus: '사용'})}
+                              className="accent-blue-500 w-4 h-4" 
+                          />
+                          <span className="font-bold text-blue-400">사용</span>
+                      </label>
+                      <label className="flex items-center gap-2 cursor-pointer hover:text-white">
+                          <input 
+                              type="radio" 
+                              name="usageStatus" 
+                              value="미사용" 
+                              checked={formData.usageStatus === '미사용'} 
+                              onChange={() => setFormData({...formData, usageStatus: '미사용'})}
+                              className="accent-red-500 w-4 h-4" 
+                          />
+                          <span className="font-bold text-red-400">미사용 (소속 상가 전체 미사용 처리됨)</span>
+                      </label>
+                  </div>
+              </FormRow>
+
           </FormSection>
 
           <div className="flex justify-center gap-3 mt-8">

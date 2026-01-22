@@ -261,8 +261,6 @@ export const MarketAPI = {
     }
 
     // 2. 시장 데이터 저장 (distributorName은 DB컬럼이 아니므로 제외 처리 필요하지만, supabaseSaver에서 id제외 나머지를 보내므로 주의)
-    // types.ts의 Market에는 distributorName이 있지만, supabaseSaver는 id만 떼고 나머지 다 보내려고 함.
-    // 따라서 여기서 DB에 없는 필드는 제거해줘야 함.
     const { distributorName, ...dbData } = market;
     const savedMarket = await supabaseSaver('markets', dbData as Market); // Casting back to Market for return type match
 
@@ -272,6 +270,14 @@ export const MarketAPI = {
     }
     if (oldDistributorId && oldDistributorId !== savedMarket.distributorId) {
         await syncDistributorManagedMarkets(oldDistributorId);
+    }
+
+    // [추가 기능] 시장 사용여부(usageStatus)가 '미사용'으로 변경되면, 해당 시장의 모든 상가(stores)도 '미사용'으로 변경
+    if (savedMarket.usageStatus === '미사용' && savedMarket.id) {
+        await supabase
+            .from('stores')
+            .update({ status: '미사용' })
+            .eq('marketId', savedMarket.id);
     }
 
     return { ...savedMarket, distributorName }; // Return with distributorName for UI consistency if needed
