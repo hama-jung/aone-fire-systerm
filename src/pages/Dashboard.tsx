@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { PageHeader, Pagination, Modal, Button } from '../components/CommonUI';
-import { AlertTriangle, WifiOff, ArrowRight, BatteryWarning, MapPin, Search, RefreshCw, Info, Map as MapIcon, X } from 'lucide-react';
+import { AlertTriangle, WifiOff, ArrowRight, BatteryWarning, MapPin, Search, RefreshCw, Info, Map as MapIcon, X, RotateCcw } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { SIDO_LIST, getSigungu } from '../utils/addressData';
 import { MarketAPI, DashboardAPI } from '../services/api'; 
@@ -230,81 +230,158 @@ export const Dashboard: React.FC = () => {
     return () => resizeObserver.disconnect();
   }, [mapInstance]);
 
-  // 4. Map Markers Update (Status Linked)
+  // 4. Map Markers Update (Status Linked & Filtered & Styled POI)
   useEffect(() => {
-    if (mapInstance && markets.length > 0) {
+    if (mapInstance) {
+        // 기존 마커(CustomOverlay) 및 인포윈도우 제거
         markers.forEach(m => m.setMap(null));
         infowindows.forEach(iw => iw.close());
         setMarkers([]);
         setInfowindows([]);
 
+        // 1. 필터링 로직 적용
+        const filteredMarkets = markets.filter(market => {
+            if (selectedSido && !market.address.includes(selectedSido)) return false;
+            if (selectedSigungu && !market.address.includes(selectedSigungu)) return false;
+            return true;
+        });
+
         const newMarkers: any[] = [];
         const newInfowindows: any[] = [];
+        
+        const bounds = new window.kakao.maps.LatLngBounds();
 
-        markets.forEach((market) => {
+        filteredMarkets.forEach((market) => {
             if (market.latitude && market.longitude) {
                 const lat = parseFloat(market.latitude);
                 const lng = parseFloat(market.longitude);
                 const markerPosition = new window.kakao.maps.LatLng(lat, lng);
 
-                const marker = new window.kakao.maps.Marker({
-                    position: markerPosition,
-                    map: mapInstance,
-                    title: market.name
-                });
+                bounds.extend(markerPosition);
 
                 const isFire = market.status === 'Fire';
-                const statusColor = isFire ? 'text-red-600' : (market.status === 'Error' ? 'text-orange-500' : 'text-green-600');
-                const statusText = isFire ? '화재발생' : (market.status === 'Error' ? '장애발생' : '정상운영');
+                const isError = market.status === 'Error';
+                
+                // --- Custom POI Styling ---
+                const colorClass = isFire ? 'bg-red-600' : (isError ? 'bg-orange-500' : 'bg-emerald-500');
+                const ringClass = isFire ? 'bg-red-500' : (isError ? 'bg-orange-400' : 'bg-emerald-400');
+                
+                // HTML Content for Custom Overlay
+                const content = document.createElement('div');
+                content.innerHTML = `
+                  <div class="relative flex items-center justify-center w-8 h-8 group cursor-pointer">
+                    <!-- Pulsing Ring (Always active for Fire/Error, Hover for Normal) -->
+                    <span class="absolute inline-flex h-full w-full rounded-full opacity-60 ${ringClass} ${isFire || isError ? 'animate-ping' : 'group-hover:animate-ping'}"></span>
+                    
+                    <!-- Core Dot with Glow -->
+                    <span class="relative inline-flex rounded-full h-4 w-4 ${colorClass} border-2 border-slate-900 shadow-[0_0_10px_rgba(0,0,0,0.5)] z-10 transition-transform group-hover:scale-110"></span>
+                    
+                    <!-- Smart Tooltip (Hover) -->
+                    <div class="absolute bottom-full mb-2 left-1/2 transform -translate-x-1/2 bg-slate-900/95 text-white text-xs px-2 py-1.5 rounded border border-slate-600 shadow-xl opacity-0 group-hover:opacity-100 transition-all duration-200 whitespace-nowrap pointer-events-none z-20 flex flex-col items-center">
+                      <span class="font-bold">${market.name}</span>
+                      ${isFire ? '<span class="text-[10px] text-red-400 font-bold mt-0.5">🔥 화재발생</span>' : ''}
+                      ${isError ? '<span class="text-[10px] text-orange-400 font-bold mt-0.5">⚠️ 장애발생</span>' : ''}
+                      <div class="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-slate-600"></div>
+                    </div>
+                  </div>
+                `;
+
+                const customOverlay = new window.kakao.maps.CustomOverlay({
+                    position: markerPosition,
+                    content: content,
+                    yAnchor: 0.5,
+                    zIndex: isFire ? 100 : (isError ? 50 : 1) // 화재 마커를 가장 위로
+                });
+
+                // InfoWindow Content (Standard fallback click detail)
+                const statusText = isFire ? '화재발생' : (isError ? '장애발생' : '정상운영');
+                const statusTextColor = isFire ? 'text-red-500' : (isError ? 'text-orange-500' : 'text-emerald-500');
                 
                 const iwContent = `
-                    <div style="padding:10px; min-width:200px; color:black; font-size:12px; border-radius:4px;">
-                        <strong style="font-size:14px;">${market.name}</strong>
-                        <div style="margin-top:4px; color:#666;">${market.address}</div>
-                        <div style="margin-top:4px;">담당자: ${market.managerName || '-'}</div>
-                        <div style="margin-top:6px; font-weight:bold;" class="${statusColor}">
-                            상태: ${statusText}
+                    <div style="padding:12px; min-width:180px; color:#1e293b; font-size:12px; border-radius:4px;">
+                        <strong style="font-size:14px; color:#0f172a;">${market.name}</strong>
+                        <div style="margin-top:4px; color:#475569;">${market.address}</div>
+                        <div style="margin-top:4px; color:#475569;">담당자: ${market.managerName || '-'}</div>
+                        <div style="margin-top:6px; font-weight:bold;" class="${statusTextColor.replace('text-', 'text-color-')}">
+                            상태: <span style="color: ${isFire ? '#ef4444' : isError ? '#f97316' : '#10b981'}">${statusText}</span>
                         </div>
                     </div>
                 `;
 
                 const infowindow = new window.kakao.maps.InfoWindow({
                     content: iwContent,
-                    removable: true
+                    removable: true,
+                    zIndex: 200
                 });
 
-                window.kakao.maps.event.addListener(marker, 'click', function() {
+                // Click Event
+                content.onclick = () => {
                     newInfowindows.forEach(iw => iw.close());
-                    infowindow.open(mapInstance, marker);
-                });
+                    infowindow.setPosition(markerPosition);
+                    infowindow.open(mapInstance);
+                };
 
                 if (isFire) {
-                    infowindow.open(mapInstance, marker);
+                    infowindow.setPosition(markerPosition);
+                    infowindow.open(mapInstance);
                 }
 
-                newMarkers.push(marker);
+                customOverlay.setMap(mapInstance);
+                newMarkers.push(customOverlay);
                 newInfowindows.push(infowindow);
             }
         });
 
         setMarkers(newMarkers);
         setInfowindows(newInfowindows);
+
+        if (newMarkers.length > 0 && (selectedSido || selectedSigungu)) {
+            mapInstance.setBounds(bounds);
+        }
     }
-  }, [mapInstance, markets]);
+  }, [mapInstance, markets, selectedSido, selectedSigungu]); // 의존성 배열에 필터 조건 추가
 
-  const handlePanToMarket = (marketName: string) => {
-      if (!mapInstance || !markets.length) return;
+  // 검색 및 리셋 관련 함수
+  const isSearchActive = selectedSido !== '' || selectedSigungu !== '' || searchMarketMap !== '';
 
-      const target = markets.find(m => m.name.includes(marketName) || marketName.includes(m.name));
+  const handleResetMap = () => {
+      setSelectedSido('');
+      setSelectedSigungu('');
+      setSearchMarketMap('');
+      if (mapInstance) {
+          const moveLatLon = new window.kakao.maps.LatLng(36.3504119, 127.3845475); // 대전 시청 부근
+          mapInstance.setLevel(12);
+          mapInstance.panTo(moveLatLon);
+      }
+  };
+
+  const handlePanToMarket = (keyword: string) => {
+      if (!mapInstance || !markets.length || !keyword.trim()) return;
+
+      // 1. 현재 선택된 지역 범위 내에서만 검색 (AND 조건)
+      const filteredMarkets = markets.filter(market => {
+          let match = true;
+          if (selectedSido && !market.address.includes(selectedSido)) match = false;
+          if (selectedSigungu && !market.address.includes(selectedSigungu)) match = false;
+          return match;
+      });
+
+      // 2. 필터된 목록 내에서 이름 검색
+      const target = filteredMarkets.find(m => m.name.includes(keyword));
+
       if (target && target.latitude && target.longitude) {
           const moveLatLon = new window.kakao.maps.LatLng(parseFloat(target.latitude), parseFloat(target.longitude));
           mapInstance.setLevel(3);
           mapInstance.panTo(moveLatLon);
-      }
-      
-      // 모바일인 경우 지도 열기
-      if (window.innerWidth < 1024) {
-          setShowMobileMap(true);
+          
+          // 모바일인 경우 지도 열기
+          if (window.innerWidth < 1024) {
+              setShowMobileMap(true);
+          }
+      } else {
+          // 3. 검색 실패 시 알림 및 초기화
+          alert('찾는 현장이 없습니다. 다시 입력하세요.');
+          setSearchMarketMap('');
       }
   };
 
@@ -416,7 +493,7 @@ export const Dashboard: React.FC = () => {
 
           {/* Map Controls */}
           <div className="absolute top-0 left-0 right-0 z-20 p-3 flex gap-2 bg-gradient-to-b from-slate-900/90 to-transparent pointer-events-none lg:pt-3 pt-16">
-             <div className="flex gap-2 w-full max-w-2xl pointer-events-auto">
+             <div className="flex gap-2 w-full max-w-3xl pointer-events-auto">
                 <select 
                     className="bg-slate-800 text-white text-xs border border-slate-600 rounded px-2 py-1.5 focus:outline-none focus:border-blue-500 shadow-lg appearance-none pr-6"
                     style={{
@@ -453,7 +530,7 @@ export const Dashboard: React.FC = () => {
                 <div className="relative flex-1">
                     <input 
                         type="text" 
-                        placeholder="시장명 검색"
+                        placeholder="현장명 검색"
                         className="w-full bg-slate-800 text-white text-xs border border-slate-600 rounded pl-2 pr-8 py-1.5 focus:outline-none focus:border-blue-500 shadow-lg placeholder-slate-500"
                         value={searchMarketMap}
                         onChange={(e) => setSearchMarketMap(e.target.value)}
@@ -463,6 +540,17 @@ export const Dashboard: React.FC = () => {
                     />
                     <Search size={14} className="absolute right-2 top-2 text-slate-400 cursor-pointer" onClick={() => handlePanToMarket(searchMarketMap)} />
                 </div>
+
+                {isSearchActive && (
+                    <button 
+                        onClick={handleResetMap}
+                        className="bg-blue-600 hover:bg-blue-500 text-white text-xs px-3 py-1.5 rounded shadow-lg flex items-center gap-1 transition-colors whitespace-nowrap"
+                        title="초기화"
+                    >
+                        <RotateCcw size={12} />
+                        <span className="hidden sm:inline">전체보기</span>
+                    </button>
+                )}
              </div>
           </div>
 
