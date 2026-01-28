@@ -1,0 +1,26 @@
+
+-- [데이터 강제 표시 스크립트]
+-- RLS(Row Level Security)를 비활성화하여 권한 검사 없이 데이터를 무조건 보여줍니다.
+-- 데이터가 보이게 된 후, 나중에 보안이 필요할 때 다시 Enable 하시면 됩니다.
+
+BEGIN;
+
+ALTER TABLE public.users DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.roles DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.menus DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.common_codes DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.distributors DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.markets DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.stores DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.receivers DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.repeaters DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.detectors DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.detector_stores DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.transmitters DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.alarms DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.work_logs DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.fire_history DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.device_status DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.data_reception DISABLE ROW LEVEL SECURITY;
+
+COMMIT;

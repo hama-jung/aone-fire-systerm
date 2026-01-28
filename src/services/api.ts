@@ -202,6 +202,14 @@ async function supabaseReader<T>(
     }
     
     const { data, error } = await query;
+    
+    // [DEBUG LOG]
+    console.log(`[API] Reading ${table}:`, { 
+        dataLength: data?.length || 0, 
+        error: error?.message, 
+        dataSample: data ? data.slice(0, 2) : 'null' 
+    });
+
     if (error) {
         console.warn(`Supabase read error on ${table}:`, error.message);
         return fallbackData;
@@ -344,6 +352,8 @@ export const MarketAPI = {
 
       const { data: markets, error } = await query;
       
+      console.log("[API] Reading markets:", { length: markets?.length, error: error?.message });
+
       if (error) {
          console.warn(`Supabase read error on markets:`, error.message);
          return MOCK_MARKETS.map(m => ({...m, distributorName: '미창'}));
@@ -468,6 +478,8 @@ export const StoreAPI = {
       if (params?.marketId) query = query.eq('marketId', params.marketId);
       
       const { data: stores, error } = await query;
+      console.log("[API] Reading stores:", { length: stores?.length, error: error?.message });
+
       if (error) throw error;
 
       if (stores && stores.length > 0) {
@@ -554,6 +566,8 @@ export const WorkLogAPI = {
       
       const { data, error } = await query;
       
+      console.log("[API] Reading work_logs:", { length: data?.length, error: error?.message });
+
       if (!error && data) {
         let result = data.map((log: any) => ({
           ...log,
@@ -597,6 +611,8 @@ export const ReceiverAPI = {
       if (params?.emergencyPhone) query = query.ilike('emergencyPhone', `%${params.emergencyPhone}%`);
       
       const { data, error } = await query;
+      console.log("[API] Reading receivers:", { length: data?.length, error: error?.message });
+
       if (!error && data) {
         let result = data.map((r: any) => ({ ...r, marketName: r.markets?.name }));
         if (params?.marketName) {
@@ -669,6 +685,8 @@ export const RepeaterAPI = {
       if (params?.repeaterId) query = query.eq('repeaterId', params.repeaterId);
       
       const { data, error } = await query;
+      console.log("[API] Reading repeaters:", { length: data?.length, error: error?.message });
+
       if (!error && data) {
         let result = data.map((r: any) => ({ ...r, marketName: r.markets?.name }));
         if (params?.marketName) result = result.filter(r => r.marketName?.includes(params.marketName));
@@ -740,6 +758,8 @@ export const DetectorAPI = {
       if (params?.receiverMac) query = query.ilike('receiverMac', `%${params.receiverMac}%`);
       
       const { data: detectors, error } = await query;
+      console.log("[API] Reading detectors:", { length: detectors?.length, error: error?.message });
+
       if (error || !detectors) return [];
 
       const detectorIds = detectors.map(d => d.id);
@@ -842,6 +862,7 @@ export const TransmitterAPI = {
     try {
         let query = supabase.from('transmitters').select('*, markets(name)').order('id', { ascending: false });
         const { data, error } = await query;
+        console.log("[API] Reading transmitters:", { length: data?.length, error: error?.message });
         if (!error && data) {
             let result = data.map((t: any) => ({ ...t, marketName: t.markets?.name }));
             if (params?.marketName) result = result.filter(r => r.marketName?.includes(params.marketName));
@@ -864,6 +885,7 @@ export const AlarmAPI = {
     try {
         let query = supabase.from('alarms').select('*, markets(name)').order('id', { ascending: false });
         const { data, error } = await query;
+        console.log("[API] Reading alarms:", { length: data?.length, error: error?.message });
         if (!error && data) {
             let result = data.map((a: any) => ({ ...a, marketName: a.markets?.name }));
             if (params?.marketName) result = result.filter(r => r.marketName?.includes(params.marketName));
@@ -942,6 +964,7 @@ export const FireHistoryAPI = {
       }
 
       const { data, error } = await query;
+      console.log("[API] Reading fire_history:", { length: data?.length, error: error?.message });
       if (error) return []; // or mock
       return data as FireHistoryItem[];
     } catch (e) { return []; }
@@ -975,6 +998,7 @@ export const DeviceStatusAPI = {
       }
 
       const { data, error } = await query;
+      console.log("[API] Reading device_status:", { length: data?.length, error: error?.message });
       if (error) return [];
       return data as DeviceStatusItem[];
     } catch (e) { return []; }
@@ -1003,6 +1027,7 @@ export const DataReceptionAPI = {
       if (params?.marketName) query = query.ilike('marketName', `%${params.marketName}%`);
 
       const { data, error } = await query;
+      console.log("[API] Reading data_reception:", { length: data?.length, error: error?.message });
       if (error) {
         console.warn('DataReceptionAPI error:', error);
         return [];

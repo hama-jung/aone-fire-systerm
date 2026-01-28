@@ -502,15 +502,9 @@ export const StoreManagement: React.FC = () => {
                  placeholder="예: 01"
                  maxLength={2}
                />
-            </FormRow>
-
-            {/* 8. 사용여부 */}
-            <FormRow label="사용여부">
-               <StatusRadioGroup 
-                  label="" 
-                  value={formData.status} 
-                  onChange={(val) => setFormData({...formData, status: val as any})} 
-               />
+               <p className="text-xs text-blue-400 mt-1 break-keep">
+                 : 수신기, 중계기, 감지기를 새로 등록수정 시, 현장 기기관리에도 데이터가 연동됩니다.
+               </p>
             </FormRow>
 
             {/* 9. 비고 */}
@@ -560,6 +554,15 @@ export const StoreManagement: React.FC = () => {
                        신규 등록 시에는 이미지를 첨부할 수 없습니다. 등록 후 수정 단계에서 진행해 주세요.
                     </div>
                  )}
+            </FormRow>
+
+            {/* 8. 사용여부 - Moved to Bottom */}
+            <FormRow label="사용여부" className="col-span-1 md:col-span-2">
+               <StatusRadioGroup 
+                  label="" 
+                  value={formData.status} 
+                  onChange={(val) => setFormData({...formData, status: val as any})} 
+               />
             </FormRow>
           </FormSection>
 

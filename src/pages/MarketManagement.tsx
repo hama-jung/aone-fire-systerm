@@ -548,15 +548,6 @@ export const MarketManagement: React.FC = () => {
                      options={['복합', '열', '연기']}
                      onChange={(v) => setFormData({...formData, multiMediaType: v as any})} 
                   />
-                  
-                  <div className="bg-red-900/10 border border-red-900/30 p-3 rounded">
-                      <ConfigRadioGroup 
-                        label="현장 사용 여부 (미사용 시 하위상가 일괄적용)" name="usageStatus" 
-                        value={formData.usageStatus} 
-                        onChange={(v) => setFormData({...formData, usageStatus: v as any})} 
-                      />
-                  </div>
-
                   <ConfigRadioGroup 
                      label="기기고장 문자전송여부" name="enableDeviceFaultSms" 
                      value={formData.enableDeviceFaultSms} 
@@ -567,6 +558,17 @@ export const MarketManagement: React.FC = () => {
                      value={formData.enableCctvUrl} 
                      onChange={(v) => setFormData({...formData, enableCctvUrl: v as any})} 
                   />
+              </div>
+
+              {/* 현장 사용 여부 - 맨 하단으로 이동 */}
+              <div className="col-span-1 md:col-span-2 mt-4">
+                  <div className="bg-red-900/10 border border-red-900/30 p-3 rounded">
+                      <ConfigRadioGroup 
+                        label="현장 사용 여부 (미사용 시 각 상가도 모두 미사용상태로 바뀝니다.)" name="usageStatus" 
+                        value={formData.usageStatus} 
+                        onChange={(v) => setFormData({...formData, usageStatus: v as any})} 
+                      />
+                  </div>
               </div>
           </FormSection>
 

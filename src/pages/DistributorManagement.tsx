@@ -187,9 +187,9 @@ export const DistributorManagement: React.FC = () => {
                      required
                      address={formData.address || ''}
                      addressDetail={formData.addressDetail || ''}
-                     onAddressChange={(val) => setFormData(prev => ({...prev, address: val}))}
-                     onDetailChange={(val) => setFormData(prev => ({...prev, addressDetail: val}))}
-                     onCoordinateChange={(lat, lng) => setFormData(prev => ({...prev, latitude: lat, longitude: lng}))}
+                     onAddressChange={(val) => setFormData({...formData, address: val})}
+                     onDetailChange={(val) => setFormData({...formData, addressDetail: val})}
+                     onCoordinateChange={(lat, lng) => setFormData({...formData, latitude: lat, longitude: lng})}
                   />
               </div>
 
@@ -241,33 +241,9 @@ export const DistributorManagement: React.FC = () => {
                   />
               </FormRow>
 
-              {/* 총판 사용여부 (Full Width) - UI_STYLES.input 적용 */}
-              <FormRow label="총판 사용여부" className="col-span-1 md:col-span-2">
-                <div className={`${UI_STYLES.input} flex gap-4 text-slate-300 items-center`}>
-                  <label className="flex items-center gap-2 cursor-pointer hover:text-white">
-                    <input 
-                        type="radio" name="status" value="사용" 
-                        checked={formData.status === '사용'} 
-                        onChange={() => setFormData({...formData, status: '사용'})}
-                        className="accent-blue-500" 
-                    />
-                    <span>사용</span>
-                  </label>
-                  <label className="flex items-center gap-2 cursor-pointer hover:text-white">
-                    <input 
-                        type="radio" name="status" value="미사용" 
-                        checked={formData.status === '미사용'} 
-                        onChange={() => setFormData({...formData, status: '미사용'})}
-                        className="accent-blue-500" 
-                    />
-                    <span>미사용</span>
-                  </label>
-                </div>
-              </FormRow>
-
               {/* 관리 현장 추가 (Full Width, 수정 모드일 때만 표시) */}
               {selectedDistributor && (
-                  <FormRow label="관리 현장 추가" className="col-span-1 md:col-span-2">
+                  <FormRow label="관리현장" className="col-span-1 md:col-span-2">
                       <div className="flex flex-col gap-2 w-full">
                           <p className="text-xs text-red-400 font-medium">
                              * 관리현장은 '현장관리'에서 지정한 현장 목록이 제시됩니다. 추가, 삭제, 수정은 현장관리에서 해 주세요
@@ -292,6 +268,30 @@ export const DistributorManagement: React.FC = () => {
                       </div>
                   </FormRow>
               )}
+
+              {/* 총판 사용여부 (Full Width) - UI_STYLES.input 적용 */}
+              <FormRow label="총판 사용여부" className="col-span-1 md:col-span-2">
+                <div className={`${UI_STYLES.input} flex gap-4 text-slate-300 items-center`}>
+                  <label className="flex items-center gap-2 cursor-pointer hover:text-white">
+                    <input 
+                        type="radio" name="status" value="사용" 
+                        checked={formData.status === '사용'} 
+                        onChange={() => setFormData({...formData, status: '사용'})}
+                        className="accent-blue-500" 
+                    />
+                    <span>사용</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer hover:text-white">
+                    <input 
+                        type="radio" name="status" value="미사용" 
+                        checked={formData.status === '미사용'} 
+                        onChange={() => setFormData({...formData, status: '미사용'})}
+                        className="accent-blue-500" 
+                    />
+                    <span>미사용</span>
+                  </label>
+                </div>
+              </FormRow>
           </FormSection>
 
           {/* 하단 버튼 */}
