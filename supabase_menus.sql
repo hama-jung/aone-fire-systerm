@@ -10,9 +10,9 @@ VALUES (1, '대시보드', '/dashboard', 'Home', 10, true, true);
 INSERT INTO public.menus (id, label, path, icon, "sortOrder", "isVisiblePc", "isVisibleMobile")
 VALUES (2, '시스템 관리', null, 'Settings', 20, true, false);
 
--- Device Management (ID: 3)
+-- Device Management (ID: 3) -> Renamed to Site Device Management (현장기기관리)
 INSERT INTO public.menus (id, label, path, icon, "sortOrder", "isVisiblePc", "isVisibleMobile")
-VALUES (3, '기기 관리', null, 'Cpu', 30, true, false);
+VALUES (3, '현장기기관리', null, 'Cpu', 30, true, false);
 
 -- Data Management (ID: 4)
 INSERT INTO public.menus (id, label, path, icon, "sortOrder", "isVisiblePc", "isVisibleMobile")
@@ -25,11 +25,12 @@ SELECT setval('menus_id_seq', 4, true);
 -- 4. Insert Children (Using implicit IDs via sequence)
 
 -- System Management Children (ParentID: 2)
+-- 시장 관리 -> 현장 관리, 상가 관리 -> 기기 관리
 INSERT INTO public.menus ("parentId", label, path, "sortOrder", "isVisiblePc", "isVisibleMobile") VALUES
 (2, '사용자 관리', '/users', 10, true, false),
 (2, '총판 관리', '/distributors', 20, true, false),
-(2, '시장 관리', '/markets', 30, true, false),
-(2, '상가 관리', '/stores', 40, true, false),
+(2, '현장 관리', '/markets', 30, true, false),
+(2, '기기 관리', '/stores', 40, true, false),
 (2, '문자 전송', '/sms', 50, true, false),
 (2, '작업일지', '/work-logs', 60, true, true),
 (2, '롤 관리', '/roles', 70, true, false),
@@ -48,7 +49,8 @@ INSERT INTO public.menus ("parentId", label, path, "sortOrder", "isVisiblePc", "
 INSERT INTO public.menus ("parentId", label, path, "sortOrder", "isVisiblePc", "isVisibleMobile") VALUES
 (4, '화재 이력 관리', '/fire-history', 10, true, true),
 (4, '기기 상태 관리', '/device-status', 20, true, true),
-(4, '데이터 수신 관리', '/data-reception', 30, true, true);
+(4, '데이터 수신 관리', '/data-reception', 30, true, true),
+(4, 'UART 통신', '/uart-communication', 40, true, true);
 
 -- 5. Final Sequence Sync (Just to be safe)
 SELECT setval('menus_id_seq', (SELECT MAX(id) FROM public.menus));

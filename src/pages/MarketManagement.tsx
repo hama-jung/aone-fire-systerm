@@ -339,7 +339,7 @@ export const MarketManagement: React.FC = () => {
   if (view === 'form') {
     return (
       <>
-        <PageHeader title={selectedMarket ? "시장 수정" : "시장 등록"} />
+        <PageHeader title={selectedMarket ? "현장 수정" : "현장 등록"} />
         <form onSubmit={handleSave}>
           <FormSection title="시장 기본 정보">
               {/* 1. 총판 & 시장명 */}
@@ -593,7 +593,7 @@ export const MarketManagement: React.FC = () => {
   // --- VIEW: LIST ---
   return (
     <>
-      <PageHeader title="시장 관리" />
+      <PageHeader title="현장 관리" />
       <SearchFilterBar onSearch={handleSearch} onReset={handleReset} isFiltered={isFiltered}>
         <InputGroup 
           label="시장명" 

@@ -384,9 +384,9 @@ export const StoreManagement: React.FC = () => {
   if (view === 'form') {
     return (
       <>
-        <PageHeader title="상가 관리" />
+        <PageHeader title="기기 관리" />
         <form onSubmit={handleSave}>
-          <FormSection title={selectedStore ? "상가 수정" : "상가 등록"}>
+          <FormSection title={selectedStore ? "기기 수정" : "기기 등록"}>
             {/* 1. 소속 시장 (Required) - 한 줄 아이콘 버튼 스타일 적용 */}
             <FormRow label="소속 시장" required>
                <div className="flex gap-2 w-full">
@@ -577,7 +577,7 @@ export const StoreManagement: React.FC = () => {
   // --- VIEW: LIST ---
   return (
     <>
-      <PageHeader title="상가 관리" />
+      <PageHeader title="기기 관리" />
       <SearchFilterBar onSearch={handleSearch} onReset={handleReset} isFiltered={isFiltered}>
         <InputGroup label="상가명" value={searchStore} onChange={(e) => setSearchStore(e.target.value)} placeholder="상가명 입력" />
         <InputGroup label="소속시장" value={searchMarket} onChange={(e) => setSearchMarket(e.target.value)} placeholder="시장명 입력" />

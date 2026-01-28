@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useCallback, useContext, createContext } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { 
-  ChevronDown, ChevronRight, LogOut, Menu, Bell, Key, HelpCircle, User
+  ChevronDown, ChevronRight, LogOut, Menu, Bell, Key, HelpCircle, User,
+  Home, Users, Cpu, Activity, Settings
 } from 'lucide-react';
-import { MenuItemDB } from '../types';
+import { MenuItemDB, MenuItem } from '../types';
 import { Modal, InputGroup, Button } from './CommonUI';
 import { AuthAPI, MenuAPI } from '../services/api';
 import { getIcon } from '../utils/iconMapper';
@@ -24,6 +25,45 @@ export const usePageTitle = (defaultTitle: string) => {
   
   return currentMenu ? currentMenu.label : defaultTitle;
 };
+
+// Fallback menu items (updated names)
+const menuItems: MenuItem[] = [
+  { 
+    label: '대시보드', 
+    path: '/dashboard', 
+    icon: <Home size={16} /> 
+  },
+  { 
+    label: '시스템 관리', 
+    icon: <Settings size={16} />,
+    children: [
+      { label: '사용자 관리', path: '/users' },
+      { label: '총판 관리', path: '/distributors' },
+      { label: '현장 관리', path: '/markets' },
+      { label: '기기 관리', path: '/stores' },
+      { label: '문자 전송', path: '/sms' },
+      { label: '롤 관리', path: '/roles' },
+      { label: '접속 로그', path: '/access-logs' },
+    ]
+  },
+  { 
+    label: '현장기기관리', 
+    icon: <Cpu size={16} />,
+    children: [
+      { label: 'R형 수신기', path: '/receivers' },
+      { label: '중계기 관리', path: '/repeaters' },
+      { label: '화재감지기', path: '/detectors' },
+    ]
+  },
+  { 
+    label: '데이터 관리', 
+    icon: <Activity size={16} />,
+    children: [
+      { label: '화재 이력 관리', path: '/fire-history' },
+      { label: '기기 상태 관리', path: '/device-status' },
+    ]
+  },
+];
 
 const SidebarItem: React.FC<{ item: MenuItemDB; level?: number }> = ({ item, level = 0 }) => {
   const [isOpen, setIsOpen] = useState(true);
@@ -202,8 +242,6 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
         }
 
         // 2. Role-based Permission Check
-        // 관리자/시스템관리자는 모든 메뉴 접근 가능 (일반적으로)
-        // 여기서는 명시된 3가지 롤에 대해서만 필터링 적용
         if (role === '총판관리자' && item.allowDistributor === false) return false;
         if (role === '시장관리자' && item.allowMarket === false) return false;
         if (role === '지자체' && item.allowLocal === false) return false;
@@ -213,11 +251,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
       .map(item => ({
         ...item,
         children: item.children ? getVisibleMenus(item.children) : undefined
-      }))
-      // 자식 메뉴가 모두 필터링되어 없어진 부모 폴더 처리 (선택적)
-      // 현재 로직에서는 폴더 자체가 권한이 있으면 표시하고, 내용이 없으면 빈 폴더로 둠.
-      // 필요시 .filter(item => !item.path && (!item.children || item.children.length === 0) ? false : true) 추가 가능
-      ;
+      }));
   };
 
   const visibleMenuItems = getVisibleMenus(menuTree);
@@ -236,10 +270,10 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
           {/* Brand Header */}
           <div className="h-20 flex flex-col justify-center px-5 bg-[#263245] shadow-sm border-b border-[#3e4b61]">
             <div className="text-[20px] font-black text-white tracking-wide leading-none mb-1">
-              A-ONE 에이원
+              AI 화재알림
             </div>
             <div className="text-[12px] font-bold text-red-500 tracking-tight">
-              화재감지 모니터링
+              모니터링 시스템
             </div>
           </div>
 
@@ -274,9 +308,9 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
               </div>
             </div>
 
-            {/* Right Side Controls (PC Optimized) */}
+            {/* Right Side Controls */}
             <div className="flex items-center gap-2 lg:gap-4">
-               {/* 3. 사용자 정보 (이름 + 아이디) */}
+               {/* 3. 사용자 정보 */}
                <div className="flex items-center gap-2 px-2 py-1">
                   <div className="p-1.5 bg-gray-600 rounded-full lg:hidden">
                     <User size={14} className="text-white" />
@@ -289,10 +323,10 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
                   </div>
                </div>
 
-               {/* 구분선 (PC만) */}
+               {/* 구분선 */}
                <div className="hidden lg:block w-px h-4 bg-gray-600"></div>
 
-               {/* 4. 비밀번호 변경 (아이콘 + 텍스트) */}
+               {/* 4. 비밀번호 변경 */}
                <button 
                  onClick={handleOpenPwModal}
                  className="flex items-center gap-2 p-2 lg:px-3 lg:py-1.5 rounded-full lg:rounded hover:bg-[#3e4b61] text-gray-300 hover:text-white transition-colors lg:border lg:border-gray-600/50 lg:bg-[#3e4b61]/30"
@@ -302,7 +336,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
                  <span className="hidden lg:inline text-[13px] font-medium pt-0.5">비밀번호 변경</span>
                </button>
 
-               {/* 5. 로그아웃 (아이콘 + 텍스트) */}
+               {/* 5. 로그아웃 */}
                <button 
                  onClick={handleLogout}
                  className="flex items-center gap-2 p-2 lg:px-3 lg:py-1.5 rounded-full lg:rounded hover:bg-[#3e4b61] text-gray-300 hover:text-white transition-colors lg:border lg:border-gray-600/50 lg:bg-[#3e4b61]/30"
@@ -314,7 +348,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
             </div>
           </header>
 
-          {/* Content Body (Dark bg) - Padding adjustment: pb-0 to allow full height map */}
+          {/* Content Body */}
           <main className="flex-1 overflow-auto pt-5 px-[60px] pb-0 bg-[#0f172a] custom-scrollbar relative">
             <div className="w-full min-h-full flex flex-col max-w-[1920px] mx-auto">
               {children}

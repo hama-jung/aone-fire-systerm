@@ -59,7 +59,7 @@ export const Login: React.FC = () => {
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-[#2f3b52] mb-4 shadow-lg border border-slate-600">
             <Activity className="text-white w-8 h-8" />
           </div>
-          <h1 className="text-3xl font-bold text-white mb-2">에이원 화재감지</h1>
+          <h1 className="text-3xl font-bold text-white mb-2">AI 화재알림 모니터링 시스템</h1>
           <p className="text-slate-400 font-medium">스마트 IoT 모니터링 시스템 v1.0</p>
         </div>
 
