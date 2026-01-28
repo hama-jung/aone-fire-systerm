@@ -155,21 +155,21 @@ export const MarketManagement: React.FC = () => {
     const excelData = markets.map((m, index) => ({
       'No': index + 1,
       '총판': m.distributorName || '-',
-      '시장명': m.name,
+      '현장명': m.name,
       '주소': `${m.address} ${m.addressDetail || ''}`.trim(),
       '담당자명': m.managerName,
       '담당자연락처': m.managerPhone,
       '상태': m.status,
       '사용여부': m.usageStatus
     }));
-    exportToExcel(excelData, '시장관리_목록');
+    exportToExcel(excelData, '현장관리_목록');
   };
 
   // --- Handlers: Form Save ---
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.name) { alert('시장명을 입력해주세요.'); return; }
+    if (!formData.name) { alert('현장명을 입력해주세요.'); return; }
     if (!formData.address) { alert('주소를 입력해주세요.'); return; }
 
     try {
@@ -199,7 +199,7 @@ export const MarketManagement: React.FC = () => {
   };
 
   const handleDelete = async () => {
-    if(selectedMarket && confirm('정말 삭제하시겠습니까?\n해당 시장에 속한 모든 데이터가 영향을 받을 수 있습니다.')) {
+    if(selectedMarket && confirm('정말 삭제하시겠습니까?\n해당 현장에 속한 모든 데이터가 영향을 받을 수 있습니다.')) {
         try {
             await MarketAPI.delete(selectedMarket.id);
             alert('삭제되었습니다.');
@@ -307,7 +307,7 @@ export const MarketManagement: React.FC = () => {
   const columns: Column<Market>[] = [
     { header: 'No', accessor: (_, idx) => idx + 1, width: '60px' },
     { header: '총판', accessor: 'distributorName' },
-    { header: '시장명', accessor: 'name' },
+    { header: '현장명', accessor: 'name' },
     { header: '주소', accessor: (m) => `${m.address} ${m.addressDetail || ''}` },
     { header: '담당자명', accessor: 'managerName' },
     { header: '담당자연락처', accessor: (m) => formatPhoneNumber(m.managerPhone || '') },
@@ -341,7 +341,7 @@ export const MarketManagement: React.FC = () => {
         <PageHeader title="현장 관리" />
         <form onSubmit={handleSave}>
           <FormSection title={selectedMarket ? "현장 수정" : "현장 등록"}>
-              {/* 1. 총판 & 시장명 */}
+              {/* 1. 총판 & 현장명 */}
               <FormRow label="총판" className="col-span-1">
                  <div className="flex gap-2 w-full">
                     <div onClick={openDistModal} className="flex-1 relative cursor-pointer">
@@ -357,7 +357,7 @@ export const MarketManagement: React.FC = () => {
                     <Button type="button" variant="secondary" onClick={openDistModal}>찾기</Button>
                  </div>
               </FormRow>
-              <FormRow label="시장명" required className="col-span-1">
+              <FormRow label="현장명" required className="col-span-1">
                 <InputGroup 
                   value={formData.name || ''} 
                   onChange={(e) => setFormData({...formData, name: e.target.value})} 
@@ -487,7 +487,7 @@ export const MarketManagement: React.FC = () => {
               </FormRow>
 
               {/* 지도 이미지 (Edit Only) */}
-              <FormRow label="시장지도이미지" className="col-span-1 md:col-span-2">
+              <FormRow label="현장지도 이미지" className="col-span-1 md:col-span-2">
                  {selectedMarket ? (
                     <div className="flex flex-col gap-2 w-full">
                        <div className="flex items-center gap-2">
@@ -528,7 +528,7 @@ export const MarketManagement: React.FC = () => {
               {/* Configuration Radio Buttons Grid */}
               <div className="col-span-1 md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6 mt-4 pt-4 border-t border-slate-700">
                   <ConfigRadioGroup 
-                     label="시장전체 문자전송여부" name="enableMarketSms" 
+                     label="현장 전체 문자전송 여부" name="enableMarketSms" 
                      value={formData.enableMarketSms} 
                      onChange={(v) => setFormData({...formData, enableMarketSms: v as any})} 
                   />
@@ -551,7 +551,7 @@ export const MarketManagement: React.FC = () => {
                   
                   <div className="bg-red-900/10 border border-red-900/30 p-3 rounded">
                       <ConfigRadioGroup 
-                        label="시장 사용여부 (미사용 시 하위상가 일괄적용)" name="usageStatus" 
+                        label="현장 사용 여부 (미사용 시 하위상가 일괄적용)" name="usageStatus" 
                         value={formData.usageStatus} 
                         onChange={(v) => setFormData({...formData, usageStatus: v as any})} 
                       />
@@ -595,10 +595,10 @@ export const MarketManagement: React.FC = () => {
       <PageHeader title="현장 관리" />
       <SearchFilterBar onSearch={handleSearch} onReset={handleReset} isFiltered={isFiltered}>
         <InputGroup 
-          label="시장명" 
+          label="현장명" 
           value={searchName}
           onChange={(e) => setSearchName(e.target.value)}
-          placeholder="시장명 입력" 
+          placeholder="현장명 입력" 
         />
         <InputGroup 
           label="주소" 
