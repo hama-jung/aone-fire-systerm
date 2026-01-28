@@ -184,23 +184,23 @@ export const DateRangePicker: React.FC<{
   onEndDateChange: (val: string) => void;
 }> = ({ startDate, endDate, onStartDateChange, onEndDateChange }) => (
   <div className="flex items-center gap-2">
-    <div className="flex flex-col">
-        <label className="text-[10px] text-slate-400 mb-0.5 ml-1">시작일</label>
+    <div className="flex flex-col gap-1">
+        <label className="text-xs font-bold text-slate-300 ml-1">시작일</label>
         <input 
             type="date" 
             value={startDate} 
             onChange={(e) => onStartDateChange(e.target.value)} 
-            className={`${UI_STYLES.input} w-[130px]`} 
+            className={`${UI_STYLES.input} w-[160px] [&::-webkit-calendar-picker-indicator]:filter [&::-webkit-calendar-picker-indicator]:invert [&::-webkit-calendar-picker-indicator]:cursor-pointer`} 
         />
     </div>
-    <span className="text-slate-500 mt-4">~</span>
-    <div className="flex flex-col">
-        <label className="text-[10px] text-slate-400 mb-0.5 ml-1">종료일</label>
+    <span className="text-slate-400 mt-6 font-bold">~</span>
+    <div className="flex flex-col gap-1">
+        <label className="text-xs font-bold text-slate-300 ml-1">종료일</label>
         <input 
             type="date" 
             value={endDate} 
             onChange={(e) => onEndDateChange(e.target.value)} 
-            className={`${UI_STYLES.input} w-[130px]`} 
+            className={`${UI_STYLES.input} w-[160px] [&::-webkit-calendar-picker-indicator]:filter [&::-webkit-calendar-picker-indicator]:invert [&::-webkit-calendar-picker-indicator]:cursor-pointer`} 
         />
     </div>
   </div>
