@@ -54,12 +54,12 @@ export const Login: React.FC = () => {
          <div className="absolute -bottom-8 left-1/3 w-96 h-96 bg-indigo-900/30 rounded-full mix-blend-screen filter blur-3xl opacity-30 animate-blob animation-delay-4000"></div>
       </div>
 
-      <div className="bg-slate-800 border border-slate-700 p-10 rounded-2xl shadow-2xl w-full max-w-md z-10 relative">
+      <div className="bg-slate-800 border border-slate-700 p-10 rounded-2xl shadow-2xl w-full max-w-lg z-10 relative">
         <div className="text-center mb-10">
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-[#2f3b52] mb-4 shadow-lg border border-slate-600">
             <Activity className="text-white w-8 h-8" />
           </div>
-          <h1 className="text-3xl font-bold text-white mb-2">AI 화재알림 모니터링 시스템</h1>
+          <h1 className="text-3xl font-bold text-white mb-2 whitespace-nowrap">AI 화재알림 모니터링 시스템</h1>
           <p className="text-slate-400 font-medium">스마트 IoT 모니터링 시스템 v1.0</p>
         </div>
 
