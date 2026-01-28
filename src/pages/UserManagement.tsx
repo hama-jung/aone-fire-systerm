@@ -352,7 +352,13 @@ export const UserManagement: React.FC = () => {
               </div>
             </FormRow>
             <FormRow label="성명" required>
-              <InputGroup name="name" defaultValue={selectedUser?.name} placeholder="사용자 성명" required />
+              <InputGroup 
+                name="name" 
+                defaultValue={selectedUser?.name} 
+                placeholder="사용자 성명" 
+                required 
+                autoComplete="off"
+              />
             </FormRow>
 
             {/* 2행: 비밀번호, 비밀번호 확인 */}
@@ -363,6 +369,7 @@ export const UserManagement: React.FC = () => {
                   value={password}
                   onChange={(e) => handlePasswordChange(e.target.value)}
                   placeholder="********" 
+                  autoComplete="new-password"
                 />
                 <p className={`text-xs ${passwordError ? 'text-red-400 font-medium' : 'text-slate-500'}`}>
                   {passwordError || '비밀번호는 영문, 숫자, 특수문자 포함 6자 ~ 12자로 생성해 주세요.'}
@@ -376,6 +383,7 @@ export const UserManagement: React.FC = () => {
                   value={passwordConfirm}
                   onChange={(e) => setPasswordConfirm(e.target.value)}
                   placeholder="********" 
+                  autoComplete="new-password"
                 />
                 {/* 비밀번호 불일치 안내문 */}
                 {password && passwordConfirm && password !== passwordConfirm && (

@@ -319,7 +319,19 @@ export const AddressSearchModal: React.FC<AddressSearchModalProps> = ({ isOpen, 
         width: '100%',
         height: '100%',
         autoClose: false,
-        animation: false, 
+        animation: false,
+        // [New] Theme configuration for Dark Mode
+        theme: {
+            bgColor: "#1E293B", // slate-800 (배경)
+            searchBgColor: "#0F172A", // slate-900 (검색창 배경)
+            contentBgColor: "#1E293B", // slate-800 (리스트 배경)
+            pageBgColor: "#1E293B", // slate-800 (페이지 배경)
+            textColor: "#E2E8F0", // slate-200 (글자)
+            queryTextColor: "#FFFFFF", // white (검색창 글자)
+            postcodeTextColor: "#60A5FA", // blue-400 (우편번호)
+            emphTextColor: "#60A5FA", // blue-400 (강조)
+            outlineColor: "#334155" // slate-700 (테두리)
+        }
       }).embed(container);
     } catch (error) {
       console.error("Daum Postcode Embed Error:", error);

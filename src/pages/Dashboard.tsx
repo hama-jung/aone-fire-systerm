@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { PageHeader, Pagination } from '../components/CommonUI';
-import { AlertTriangle, WifiOff, ArrowRight, BatteryWarning, MapPin, Search, RefreshCw } from 'lucide-react';
+import { PageHeader, Pagination, Modal, Button } from '../components/CommonUI';
+import { AlertTriangle, WifiOff, ArrowRight, BatteryWarning, MapPin, Search, RefreshCw, Info } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { SIDO_LIST, getSigungu } from '../utils/addressData';
 import { MarketAPI, DashboardAPI } from '../services/api'; 
@@ -77,6 +77,9 @@ const DashboardListSection: React.FC<{
 };
 
 export const Dashboard: React.FC = () => {
+  // --- WIP Modal State ---
+  const [isWipModalOpen, setIsWipModalOpen] = useState(true);
+
   // --- Timer State ---
   const [now, setNow] = useState(new Date());
   const [secondsLeft, setSecondsLeft] = useState(60);
@@ -472,6 +475,22 @@ export const Dashboard: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* WIP Modal */}
+      <Modal 
+        isOpen={isWipModalOpen} 
+        onClose={() => setIsWipModalOpen(false)} 
+        title="시스템 알림"
+        width="max-w-sm"
+        icon={<Info size={24} className="text-blue-400" />}
+      >
+         <div className="flex flex-col items-center justify-center p-4 gap-6">
+            <div className="text-lg font-bold text-white">작업중입니다</div>
+            <Button onClick={() => setIsWipModalOpen(false)} className="w-full">
+               확인
+            </Button>
+         </div>
+      </Modal>
     </div>
   );
 };
