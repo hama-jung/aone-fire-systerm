@@ -159,7 +159,8 @@ export const MarketManagement: React.FC = () => {
       '주소': `${m.address} ${m.addressDetail || ''}`.trim(),
       '담당자명': m.managerName,
       '담당자연락처': m.managerPhone,
-      '상태': m.status
+      '상태': m.status,
+      '사용여부': m.usageStatus
     }));
     exportToExcel(excelData, '시장관리_목록');
   };
@@ -310,9 +311,10 @@ export const MarketManagement: React.FC = () => {
     { header: '주소', accessor: (m) => `${m.address} ${m.addressDetail || ''}` },
     { header: '담당자명', accessor: 'managerName' },
     { header: '담당자연락처', accessor: (m) => formatPhoneNumber(m.managerPhone || '') },
-    { header: '상태', accessor: (m: Market) => (
+    { header: '관제상태', accessor: (m: Market) => (
       <span className={`whitespace-nowrap ${m.status === 'Fire' ? 'text-red-400 font-bold' : (m.status === 'Error' ? 'text-orange-400' : 'text-slate-400')}`}>{m.status}</span>
     )},
+    { header: '사용여부', accessor: (m: Market) => <StatusBadge status={m.usageStatus || '사용'} />, width: '100px' },
   ];
 
   const distColumns: Column<Distributor>[] = [
