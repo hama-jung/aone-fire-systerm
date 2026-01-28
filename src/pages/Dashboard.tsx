@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { PageHeader, Pagination, Modal, Button } from '../components/CommonUI';
-import { AlertTriangle, WifiOff, ArrowRight, BatteryWarning, MapPin, Search, RefreshCw, Info } from 'lucide-react';
+import { AlertTriangle, WifiOff, ArrowRight, BatteryWarning, MapPin, Search, RefreshCw, Info, Map as MapIcon, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { SIDO_LIST, getSigungu } from '../utils/addressData';
 import { MarketAPI, DashboardAPI } from '../services/api'; 
@@ -30,7 +30,7 @@ const DashboardListSection: React.FC<{
   const currentItems = data.slice((page - 1) * ITEMS_PER_LIST_PAGE, page * ITEMS_PER_LIST_PAGE);
 
   return (
-    <div className="bg-slate-800 border border-slate-700 rounded-lg shadow-sm overflow-hidden flex flex-col transition-all duration-300">
+    <div className="bg-slate-800 border border-slate-700 rounded-lg shadow-sm overflow-hidden flex flex-col transition-all duration-300 flex-shrink-0">
       <div className={`px-4 py-3 border-b border-slate-700/50 flex items-center justify-between ${headerColorClass}`}>
         <div className="flex items-center gap-2">
           {icon}
@@ -79,6 +79,9 @@ const DashboardListSection: React.FC<{
 export const Dashboard: React.FC = () => {
   // --- WIP Modal State ---
   const [isWipModalOpen, setIsWipModalOpen] = useState(true);
+
+  // --- Mobile Map State ---
+  const [showMobileMap, setShowMobileMap] = useState(false);
 
   // --- Timer State ---
   const [now, setNow] = useState(new Date());
@@ -144,9 +147,6 @@ export const Dashboard: React.FC = () => {
             }
 
             // 3. 시장 상태 업데이트 (이벤트 데이터 기반으로 시장 상태 결정)
-            // - 화재 목록에 있는 시장 -> Status: Fire
-            // - 고장/통신 목록에 있는 시장 -> Status: Error
-            // - 그 외 -> Normal
             const fireMarkets = new Set(dashboardData.fireEvents?.map((e: any) => e.marketName));
             const errorMarkets = new Set([
                 ...(dashboardData.faultEvents?.map((e: any) => e.marketName) || []),
@@ -247,8 +247,6 @@ export const Dashboard: React.FC = () => {
                 const lng = parseFloat(market.longitude);
                 const markerPosition = new window.kakao.maps.LatLng(lat, lng);
 
-                // 마커 이미지 (상태별 색상 구분은 카카오맵 기본 마커로는 제한적이므로, 필요시 커스텀 이미지 사용)
-                // 여기서는 기본 마커를 쓰고 인포윈도우로 상태 강조
                 const marker = new window.kakao.maps.Marker({
                     position: markerPosition,
                     map: mapInstance,
@@ -280,7 +278,6 @@ export const Dashboard: React.FC = () => {
                     infowindow.open(mapInstance, marker);
                 });
 
-                // 화재 발생 시 인포윈도우 자동 오픈
                 if (isFire) {
                     infowindow.open(mapInstance, marker);
                 }
@@ -304,6 +301,11 @@ export const Dashboard: React.FC = () => {
           mapInstance.setLevel(3);
           mapInstance.panTo(moveLatLon);
       }
+      
+      // 모바일인 경우 지도 열기
+      if (window.innerWidth < 1024) {
+          setShowMobileMap(true);
+      }
   };
 
   const timerContent = (
@@ -321,10 +323,12 @@ export const Dashboard: React.FC = () => {
     <div className="flex flex-col h-full text-slate-200">
       <PageHeader title="대시보드" rightContent={timerContent} />
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 flex-1 min-h-0">
-        {/* Left Column: Lists */}
-        <div className="flex flex-col gap-4 overflow-y-auto pr-1 custom-scrollbar">
-          <div className="grid grid-cols-3 gap-3">
+      {/* Main Grid Layout - PC Fixed Height (calc(100vh - header - padding - gap)) */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-[calc(100vh-160px)] min-h-[500px]">
+        
+        {/* Left Column: Lists (Always Visible, Independent Scroll) */}
+        <div className="flex flex-col gap-4 overflow-y-auto pr-1 custom-scrollbar pb-20 lg:pb-0">
+          <div className="grid grid-cols-3 gap-3 flex-shrink-0">
             {stats.map((stat, idx) => (
               <div key={idx} className={`${stat.color} text-white px-4 h-20 rounded-lg shadow-lg border border-white/10 flex flex-row items-center justify-between transform transition-transform hover:scale-105`}>
                 <div className="flex items-center gap-3">
@@ -395,10 +399,23 @@ export const Dashboard: React.FC = () => {
           />
         </div>
 
-        {/* Right Column: Map */}
-        <div className="bg-slate-900 rounded-xl overflow-hidden relative shadow-inner border border-slate-700 flex flex-col h-full">
+        {/* Right Column: Map (Hidden on Mobile unless toggled) */}
+        <div className={`
+            bg-slate-900 rounded-xl overflow-hidden relative shadow-inner border border-slate-700 flex flex-col h-full
+            ${showMobileMap ? 'fixed inset-0 z-50 m-0 rounded-none' : 'hidden lg:flex'}
+        `}>
+          {/* Mobile Close Button */}
+          <div className="lg:hidden absolute top-4 left-4 z-50">
+             <button 
+                onClick={() => setShowMobileMap(false)}
+                className="bg-slate-800/90 text-white p-2 rounded-full border border-slate-600 shadow-lg backdrop-blur-sm active:scale-95 transition-transform"
+             >
+                <X size={24} />
+             </button>
+          </div>
+
           {/* Map Controls */}
-          <div className="absolute top-0 left-0 right-0 z-20 p-3 flex gap-2 bg-gradient-to-b from-slate-900/90 to-transparent pointer-events-none">
+          <div className="absolute top-0 left-0 right-0 z-20 p-3 flex gap-2 bg-gradient-to-b from-slate-900/90 to-transparent pointer-events-none lg:pt-3 pt-16">
              <div className="flex gap-2 w-full max-w-2xl pointer-events-auto">
                 <select 
                     className="bg-slate-800 text-white text-xs border border-slate-600 rounded px-2 py-1.5 focus:outline-none focus:border-blue-500 shadow-lg appearance-none pr-6"
@@ -487,6 +504,17 @@ export const Dashboard: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Mobile Floating Map Button (Only show when map is closed) */}
+      {!showMobileMap && (
+        <button
+            onClick={() => setShowMobileMap(true)}
+            className="lg:hidden fixed bottom-6 right-6 z-40 bg-blue-600 text-white p-4 rounded-full shadow-2xl border-2 border-blue-400 hover:bg-blue-500 transition-transform active:scale-95 animate-bounce-slow"
+            aria-label="지도 보기"
+        >
+            <MapIcon size={28} />
+        </button>
+      )}
 
       {/* WIP Modal */}
       <Modal 
