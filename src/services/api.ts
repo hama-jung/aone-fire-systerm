@@ -41,21 +41,13 @@ const MOCK_DISTRIBUTORS: Distributor[] = [
 
 const MOCK_DASHBOARD = {
   stats: [
-    { label: '최근 화재 발생', value: 2, type: 'fire', color: 'bg-red-500' },
-    { label: '최근 고장 발생', value: 5, type: 'fault', color: 'bg-orange-500' },
-    { label: '통신 이상', value: 1, type: 'error', color: 'bg-gray-500' },
+    { label: '최근 화재 발생', value: 0, type: 'fire', color: 'bg-red-500' },
+    { label: '최근 고장 발생', value: 0, type: 'fault', color: 'bg-orange-500' },
+    { label: '통신 이상', value: 0, type: 'error', color: 'bg-gray-500' },
   ],
-  fireEvents: [
-    { id: 1, msg: '인천광역시 부평구 진라도김치 화재 감지', time: '2024-05-25 12:39:15', marketName: '부평자유시장' },
-    { id: 2, msg: '대전광역시 서구 약초마을 화재 감지 알림', time: '2024-06-25 08:59:15', marketName: '대전중앙시장' },
-  ],
-  faultEvents: [
-    { id: 1, msg: '중계기 02 감지기 01 감지기 통신이상', time: '2024-06-25 10:06:53', marketName: '부평자유시장' },
-    { id: 2, msg: '중계기 15 감지기 11 감지기 통신이상', time: '2024-06-25 08:01:51', marketName: '대전중앙시장' },
-  ],
-  commEvents: [
-    { id: 1, market: '부평자유시장', address: '인천 부평구', receiver: 'R-01' }
-  ]
+  fireEvents: [],
+  faultEvents: [],
+  commEvents: []
 };
 
 // --- 2. Helper Utilities ---
@@ -1002,15 +994,97 @@ export const AlarmAPI = {
   } 
 };
 
-// --- New APIs ---
+// --- Dashboard API ---
 
 export const DashboardAPI = {
   getData: async () => {
-    // In a real app, this would aggregate data from fire_logs, device_status, etc.
-    // For now, returning Mock data as per previous implementation pattern for Dashboard
-    return new Promise((resolve) => {
-        setTimeout(() => resolve(MOCK_DASHBOARD), 500);
-    });
+    try {
+        // 1. Fire Logs (from fire_history)
+        // 조건: falseAlarmStatus가 '화재' 또는 '등록'인 건 (오탐 제외)
+        const { data: fireData } = await supabase
+            .from('fire_history')
+            .select('*')
+            .in('falseAlarmStatus', ['화재', '등록'])
+            .order('registeredAt', { ascending: false })
+            .limit(10);
+
+        const mappedFireLogs = (fireData || []).map((log: any) => ({
+            id: log.id,
+            msg: `${log.marketName} ${log.detectorInfoChamber || '화재감지'}`,
+            time: log.registeredAt,
+            marketName: log.marketName
+        }));
+
+        // 2. Fault Logs (from device_status)
+        // 조건: deviceStatus가 '에러'이고 errorCode가 '04'(통신이상)가 아닌 건
+        const { data: faultData } = await supabase
+            .from('device_status')
+            .select('*')
+            .eq('deviceStatus', '에러')
+            .neq('errorCode', '04') 
+            .order('registeredAt', { ascending: false })
+            .limit(10);
+
+        const mappedFaultLogs = (faultData || []).map((log: any) => ({
+            id: log.id,
+            msg: `${log.marketName} ${log.deviceType} ${log.deviceId}번 고장`,
+            time: log.registeredAt,
+            marketName: log.marketName
+        }));
+
+        // 3. Communication Errors (from device_status)
+        // 조건: errorCode가 '04'인 건
+        const { data: commData } = await supabase
+            .from('device_status')
+            .select('*')
+            .eq('errorCode', '04')
+            .order('registeredAt', { ascending: false })
+            .limit(10);
+
+        const mappedCommLogs = (commData || []).map((log: any) => ({
+            id: log.id,
+            market: log.marketName,
+            address: log.marketName, // 주소 정보가 없으므로 시장명으로 대체
+            receiver: log.receiverMac
+        }));
+
+        // 4. Stats Calculation (Simple counts from fetched arrays, or separate count queries)
+        // 실제로는 count 쿼리를 별도로 날리는 것이 정확하지만, 여기서는 가져온 최신 데이터 기준으로 간단히 표시하거나
+        // 또는 전체 카운트를 위해 별도 쿼리를 수행할 수 있습니다. 여기선 예시로 length를 사용하되, 
+        // 전체 카운트를 원하면 count 쿼리를 추가해야 합니다.
+        
+        // 전체 카운트 조회 (Optional improvement)
+        const { count: fireCount } = await supabase
+            .from('fire_history')
+            .select('*', { count: 'exact', head: true })
+            .in('falseAlarmStatus', ['화재', '등록']);
+            
+        const { count: faultCount } = await supabase
+            .from('device_status')
+            .select('*', { count: 'exact', head: true })
+            .eq('deviceStatus', '에러')
+            .neq('errorCode', '04');
+
+        const { count: commCount } = await supabase
+            .from('device_status')
+            .select('*', { count: 'exact', head: true })
+            .eq('errorCode', '04');
+
+        return {
+            stats: [
+                { label: '최근 화재 발생', value: fireCount || 0, type: 'fire', color: 'bg-red-500' },
+                { label: '최근 고장 발생', value: faultCount || 0, type: 'fault', color: 'bg-orange-500' },
+                { label: '통신 이상', value: commCount || 0, type: 'error', color: 'bg-gray-500' },
+            ],
+            fireEvents: mappedFireLogs,
+            faultEvents: mappedFaultLogs,
+            commEvents: mappedCommLogs
+        };
+
+    } catch (e) {
+        console.error("Dashboard Data Fetch Error:", e);
+        return MOCK_DASHBOARD; // Fallback in case of critical failure
+    }
   }
 };
 
