@@ -47,7 +47,8 @@ const MOCK_DASHBOARD = {
   ],
   fireEvents: [],
   faultEvents: [],
-  commEvents: []
+  commEvents: [],
+  mapData: []
 };
 
 // --- 2. Helper Utilities ---
@@ -988,7 +989,11 @@ export const AlarmAPI = {
 export const DashboardAPI = {
   getData: async () => {
     try {
-        // 1. Fire Logs (from fire_history)
+        // [수정] 1. 모든 시장 정보를 먼저 조회 (ID <-> Name 매핑 및 전체 목록 확보)
+        const { data: markets } = await supabase.from('markets').select('*');
+        const allMarkets = markets || [];
+
+        // 2. Fire Logs (from fire_history) - Active (화재) or Registered
         const { data: fireData } = await supabase
             .from('fire_history')
             .select('*')
@@ -1000,10 +1005,10 @@ export const DashboardAPI = {
             id: log.id,
             msg: `${log.marketName} ${log.detectorInfoChamber || '화재감지'}`,
             time: log.registeredAt,
-            marketName: log.marketName
+            marketName: log.marketName // 중요: 매핑을 위한 Key
         }));
 
-        // 2. Fault Logs (from device_status)
+        // 3. Fault Logs (from device_status) - Error status
         const { data: faultData } = await supabase
             .from('device_status')
             .select('*')
@@ -1016,10 +1021,10 @@ export const DashboardAPI = {
             id: log.id,
             msg: `${log.marketName} ${log.deviceType} ${log.deviceId}번 고장`,
             time: log.registeredAt,
-            marketName: log.marketName
+            marketName: log.marketName // 중요: 매핑을 위한 Key
         }));
 
-        // 3. Communication Errors (from device_status)
+        // 4. Communication Errors
         const { data: commData } = await supabase
             .from('device_status')
             .select('*')
@@ -1032,10 +1037,10 @@ export const DashboardAPI = {
             market: log.marketName,
             address: log.marketName,
             receiver: log.receiverMac,
-            time: log.registeredAt // [수정] 대시보드 표시를 위해 시간 필드 추가
+            time: log.registeredAt
         }));
 
-        // 4. Stats Calculation
+        // 5. Stats Calculation
         const { count: fireCount } = await supabase
             .from('fire_history')
             .select('*', { count: 'exact', head: true })
@@ -1052,6 +1057,32 @@ export const DashboardAPI = {
             .select('*', { count: 'exact', head: true })
             .eq('errorCode', '04');
 
+        // [핵심 수정] 6. Map Data Merging (Client Side Join for Map Status)
+        // 실제 DB에 있는 'markets' 테이블 기준으로 상태를 판별합니다.
+        // 로그의 'marketName'이 'markets.name'과 일치해야만 지도에 표시됩니다.
+        const fireMarketNames = new Set(mappedFireLogs.map((l: any) => l.marketName.trim()));
+        const faultMarketNames = new Set(mappedFaultLogs.map((l: any) => l.marketName.trim()));
+
+        const mapData = allMarkets.map((m: Market) => {
+            let status = 'Normal';
+            const cleanName = m.name.trim(); // 이름 공백 제거 후 비교
+            
+            if (fireMarketNames.has(cleanName)) {
+                status = 'Fire';
+            } else if (faultMarketNames.has(cleanName)) {
+                status = 'Error';
+            }
+
+            return {
+                id: m.id,
+                name: m.name,
+                x: m.latitude, // 주의: 기존 Dashboard 코드는 kakao map을 쓰므로 lat/lng이 필요
+                y: m.longitude,
+                status: status,
+                address: m.address
+            };
+        });
+
         return {
             stats: [
                 { label: '최근 화재 발생', value: fireCount || 0, type: 'fire', color: 'bg-red-500' },
@@ -1060,12 +1091,13 @@ export const DashboardAPI = {
             ],
             fireEvents: mappedFireLogs,
             faultEvents: mappedFaultLogs,
-            commEvents: mappedCommLogs
+            commEvents: mappedCommLogs,
+            mapData: mapData // [NEW] 실제 DB 기반 지도 데이터 반환
         };
 
     } catch (e) {
         console.error("Dashboard Data Fetch Error:", e);
-        return MOCK_DASHBOARD;
+        return { ...MOCK_DASHBOARD, mapData: [] };
     }
   }
 };
