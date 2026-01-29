@@ -215,7 +215,7 @@ export const Dashboard: React.FC = () => {
             const options = {
                 // [수정] 대한민국 전체가 보이도록 초기 줌 레벨 조정 (12 -> 13)
                 center: new window.kakao.maps.LatLng(36.3504119, 127.3845475), // 대전 시청 부근
-                level: 13
+                level: 14
             };
             const map = new window.kakao.maps.Map(mapContainer.current, options);
             const zoomControl = new window.kakao.maps.ZoomControl();
