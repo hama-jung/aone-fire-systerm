@@ -408,10 +408,10 @@ export const Dashboard: React.FC = () => {
 
   const timerContent = (
     <div className="flex items-center gap-3 text-xs md:text-sm text-slate-400 bg-slate-800/50 px-3 py-1.5 rounded border border-slate-700">
-        <span>기준 시각 : <span className="text-white font-mono ml-1">{now.toLocaleTimeString()}</span></span>
+        <span>기준 시각 : <span className="text-white ml-1">{now.toLocaleTimeString()}</span></span>
         <div className="w-px h-3 bg-slate-600"></div>
         <span>
-            <span className="text-blue-400 font-bold font-mono w-5 inline-block text-right">{secondsLeft}</span>
+            <span className="text-blue-400 font-bold w-5 inline-block text-right">{secondsLeft}</span>
             초 후 새로고침
         </span>
     </div>
@@ -453,7 +453,7 @@ export const Dashboard: React.FC = () => {
                       <span className="bg-red-600 text-white text-[10px] px-1.5 py-0.5 rounded font-bold shrink-0 animate-pulse">화재</span>
                       <span className="font-medium text-slate-200 truncate group-hover:text-white" title={item.msg}>{item.msg}</span>
                    </div>
-                   <div className="text-[10px] text-slate-500 shrink-0 ml-2 font-mono flex flex-col items-end leading-tight">
+                   <div className="text-xs lg:text-sm text-slate-500 shrink-0 ml-2 flex flex-col lg:flex-row lg:items-center lg:gap-2 leading-tight">
                       <span className="text-slate-400">{dt.date}</span>
                       <span>{dt.time}</span>
                    </div>
@@ -476,7 +476,7 @@ export const Dashboard: React.FC = () => {
                       <span className="bg-orange-600 text-white text-[10px] px-1.5 py-0.5 rounded font-bold shrink-0">고장</span>
                       <span className="font-medium text-slate-200 truncate group-hover:text-white" title={item.msg}>{item.msg}</span>
                    </div>
-                   <div className="text-[10px] text-slate-500 shrink-0 ml-2 font-mono flex flex-col items-end leading-tight">
+                   <div className="text-xs lg:text-sm text-slate-500 shrink-0 ml-2 flex flex-col lg:flex-row lg:items-center lg:gap-2 leading-tight">
                       <span className="text-slate-400">{dt.date}</span>
                       <span>{dt.time}</span>
                    </div>
@@ -501,7 +501,7 @@ export const Dashboard: React.FC = () => {
                    </div>
                    <div className="flex items-center gap-2 shrink-0 ml-2">
                       <span className="text-orange-300 font-mono text-[10px] bg-orange-900/30 px-1.5 py-0.5 rounded mr-1">R:{item.receiver}</span>
-                      <div className="text-[10px] text-slate-500 font-mono flex flex-col items-end leading-tight">
+                      <div className="text-xs lg:text-sm text-slate-500 flex flex-col lg:flex-row lg:items-center lg:gap-2 leading-tight">
                         <span className="text-slate-400">{dt.date}</span>
                         <span>{dt.time}</span>
                       </div>
