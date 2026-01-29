@@ -15,6 +15,27 @@ declare global {
 
 const ITEMS_PER_LIST_PAGE = 4;
 
+// 시/도별 중심 좌표 및 줌 레벨 정의
+const SIDO_COORDINATES: { [key: string]: { lat: number, lng: number, level: number } } = {
+  "서울특별시": { lat: 37.5665, lng: 126.9780, level: 8 },
+  "부산광역시": { lat: 35.1796, lng: 129.0756, level: 8 },
+  "대구광역시": { lat: 35.8714, lng: 128.6014, level: 8 },
+  "인천광역시": { lat: 37.4563, lng: 126.7052, level: 9 },
+  "광주광역시": { lat: 35.1601, lng: 126.8517, level: 8 },
+  "대전광역시": { lat: 36.3504, lng: 127.3845, level: 8 },
+  "울산광역시": { lat: 35.5384, lng: 129.3114, level: 8 },
+  "세종특별자치시": { lat: 36.4800, lng: 127.2890, level: 9 },
+  "경기도": { lat: 37.4138, lng: 127.5183, level: 10 },
+  "강원특별자치도": { lat: 37.8228, lng: 128.1555, level: 11 },
+  "충청북도": { lat: 36.6350, lng: 127.4914, level: 11 },
+  "충청남도": { lat: 36.6588, lng: 126.6728, level: 11 },
+  "전북특별자치도": { lat: 35.7175, lng: 127.1530, level: 11 },
+  "전라남도": { lat: 34.8161, lng: 126.4629, level: 11 },
+  "경상북도": { lat: 36.5760, lng: 128.5056, level: 11 },
+  "경상남도": { lat: 35.2383, lng: 128.6922, level: 11 },
+  "제주특별자치도": { lat: 33.4996, lng: 126.5312, level: 10 },
+};
+
 // --- Helper: Date Formatter ---
 const formatDateTime = (isoString: string) => {
   if (!isoString) return { date: '-', time: '-' };
@@ -192,8 +213,9 @@ export const Dashboard: React.FC = () => {
       try {
         window.kakao.maps.load(() => {
             const options = {
+                // [수정] 대한민국 전체가 보이도록 초기 줌 레벨 조정 (12 -> 13)
                 center: new window.kakao.maps.LatLng(36.3504119, 127.3845475), // 대전 시청 부근
-                level: 12
+                level: 13
             };
             const map = new window.kakao.maps.Map(mapContainer.current, options);
             const zoomControl = new window.kakao.maps.ZoomControl();
@@ -242,7 +264,7 @@ export const Dashboard: React.FC = () => {
   // 4. Map Markers Update (Material Icon Style)
   useEffect(() => {
     if (mapInstance) {
-        // [수정] 기존 마커 제거 시 markersRef 사용
+        // [수정] 기존 마커 제거
         markersRef.current.forEach(m => m.setMap(null));
         markersRef.current = [];
 
@@ -303,12 +325,18 @@ export const Dashboard: React.FC = () => {
             }
         });
 
-        // [수정] 마커가 1개 이상이면 해당 영역으로 지도 이동
+        // [수정] 지도 이동 로직 개선
         if (markersRef.current.length > 0) {
+            // 마커가 있으면 마커 기준으로 범위 재설정
             mapInstance.setBounds(bounds);
         } else if (selectedSido && !selectedSigungu) {
-            // 마커는 없지만 시/도만 선택된 경우 해당 지역 센터로 이동 (예시 좌표 사용)
-            // 실제 구현에서는 행정구역별 중심좌표 데이터가 필요함. 여기선 일단 유지.
+            // 마커는 없지만 시/도가 선택된 경우 해당 지역 중심으로 이동
+            const regionInfo = SIDO_COORDINATES[selectedSido];
+            if (regionInfo) {
+                const moveLatLon = new window.kakao.maps.LatLng(regionInfo.lat, regionInfo.lng);
+                mapInstance.setLevel(regionInfo.level);
+                mapInstance.panTo(moveLatLon);
+            }
         }
     }
   }, [mapInstance, markets, selectedSido, selectedSigungu]); 
@@ -322,7 +350,7 @@ export const Dashboard: React.FC = () => {
       setSearchMarketMap('');
       if (mapInstance) {
           const moveLatLon = new window.kakao.maps.LatLng(36.3504119, 127.3845475);
-          mapInstance.setLevel(12);
+          mapInstance.setLevel(13); // 초기 레벨과 동일하게 13으로 복귀
           mapInstance.panTo(moveLatLon);
       }
   };
