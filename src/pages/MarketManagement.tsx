@@ -7,7 +7,8 @@ import {
 import { Market, Distributor } from '../types';
 import { MarketAPI, DistributorAPI } from '../services/api';
 import { exportToExcel } from '../utils/excel';
-import { Search, Upload, Paperclip, X, Plus, Trash2 } from 'lucide-react';
+import { Search, Upload, Paperclip, X, Plus, Map as MapIcon } from 'lucide-react';
+import { VisualMapConsole } from '../components/VisualMapConsole';
 
 const ITEMS_PER_PAGE = 10;
 const MODAL_ITEMS_PER_PAGE = 5;
@@ -73,6 +74,9 @@ export const MarketManagement: React.FC = () => {
   const [distList, setDistList] = useState<Distributor[]>([]);
   const [distSearchName, setDistSearchName] = useState('');
   const [distPage, setDistPage] = useState(1);
+
+  // Visual Map Console State
+  const [visualMapMarket, setVisualMapMarket] = useState<Market | null>(null);
   
   // --- Initial Data Load ---
   const fetchMarkets = async (overrides?: { name?: string, address?: string, managerName?: string }) => {
@@ -149,6 +153,15 @@ export const MarketManagement: React.FC = () => {
     setMapImageFile(null);
     if(fileInputRef.current) fileInputRef.current.value = '';
     setView('form'); 
+  };
+
+  const handleOpenMapEditor = (e: React.MouseEvent, market: Market) => {
+    e.stopPropagation(); // prevent row click
+    if (!market.mapImage) {
+        alert('등록된 지도 이미지가 없습니다.\n먼저 현장 수정에서 지도를 등록해주세요.');
+        return;
+    }
+    setVisualMapMarket(market);
   };
   
   const handleExcel = () => {
@@ -313,6 +326,20 @@ export const MarketManagement: React.FC = () => {
     { header: '담당자명', accessor: 'managerName' },
     { header: '담당자연락처', accessor: (m) => formatPhoneNumber(m.managerPhone || '') },
     { header: '사용여부', accessor: (m: Market) => <StatusBadge status={m.usageStatus || '사용'} />, width: '100px' },
+    { 
+        header: '지도배치', 
+        accessor: (m: Market) => (
+            <Button 
+                variant="secondary" 
+                className="h-7 text-xs px-2 bg-slate-700 hover:bg-blue-600 border-slate-600" 
+                onClick={(e) => handleOpenMapEditor(e, m)}
+                title="기기 배치 편집"
+            >
+                <MapIcon size={14} className="mr-1"/> 배치
+            </Button>
+        ), 
+        width: '100px' 
+    },
   ];
 
   const distColumns: Column<Distributor>[] = [
@@ -333,7 +360,7 @@ export const MarketManagement: React.FC = () => {
   const modalDistLast = distPage * MODAL_ITEMS_PER_PAGE;
   const modalDistFirst = modalDistLast - MODAL_ITEMS_PER_PAGE;
   const currentDists = distList.slice(modalDistFirst, modalDistLast);
-  const distTotalPages = Math.ceil(distList.length / MODAL_ITEMS_PER_PAGE);
+  // const distTotalPages = Math.ceil(distList.length / MODAL_ITEMS_PER_PAGE);
 
   // --- View: Form ---
   if (view === 'form') {
@@ -634,6 +661,15 @@ export const MarketManagement: React.FC = () => {
         currentPage={currentPage}
         onPageChange={setCurrentPage}
       />
+
+      {/* Visual Map Console Modal */}
+      {visualMapMarket && (
+          <VisualMapConsole 
+             market={visualMapMarket} 
+             initialMode="edit" 
+             onClose={() => setVisualMapMarket(null)} 
+          />
+      )}
     </>
   );
 };

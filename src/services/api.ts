@@ -648,6 +648,12 @@ export const ReceiverAPI = {
     const { marketName, ...saveData } = receiver;
     return supabaseSaver('receivers', saveData as Receiver);
   }, 
+  // [NEW] 좌표 저장 API
+  saveCoordinates: async (id: number, x: number, y: number) => {
+    const { error } = await supabase.from('receivers').update({ x_pos: x, y_pos: y }).eq('id', id);
+    if (error) throw error;
+    return true;
+  },
   delete: async (id: number) => {
     return supabaseDeleter('receivers', id);
   }, 
@@ -736,6 +742,12 @@ export const RepeaterAPI = {
     const { marketName, ...saveData } = repeater;
     return supabaseSaver('repeaters', saveData as Repeater);
   }, 
+  // [NEW] 좌표 저장 API
+  saveCoordinates: async (id: number, x: number, y: number) => {
+    const { error } = await supabase.from('repeaters').update({ x_pos: x, y_pos: y }).eq('id', id);
+    if (error) throw error;
+    return true;
+  },
   delete: async (id: number) => {
     return supabaseDeleter('repeaters', id);
   }, 
@@ -781,6 +793,10 @@ export const DetectorAPI = {
     try {
       let query = supabase.from('detectors').select('*').order('id', { ascending: false });
       if (params?.receiverMac) query = query.ilike('receiverMac', `%${params.receiverMac}%`);
+      if (params?.marketName) {
+          // Join이 아닌 경우 marketId 필터링을 위해 먼저 marketId를 찾거나 클라이언트 필터링
+          // 여기선 클라이언트 필터링 방식을 유지
+      }
       
       const { data: detectors, error } = await query;
 
@@ -864,7 +880,13 @@ export const DetectorAPI = {
     }
     
     return savedDetector;
-  }, 
+  },
+  // [NEW] 좌표 저장 API
+  saveCoordinates: async (id: number, x: number, y: number) => {
+    const { error } = await supabase.from('detectors').update({ x_pos: x, y_pos: y }).eq('id', id);
+    if (error) throw error;
+    return true;
+  },
   delete: async (id: number) => {
     return supabaseDeleter('detectors', id);
   }, 

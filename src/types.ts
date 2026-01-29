@@ -102,6 +102,9 @@ export interface Receiver {
   transmissionInterval?: string; // '01시간' ~ '23시간'
   image?: string;
   status: '사용' | '미사용';
+  // [NEW] Coordinates
+  x_pos?: number;
+  y_pos?: number;
 }
 
 export interface Repeater {
@@ -114,6 +117,9 @@ export interface Repeater {
   location?: string;
   image?: string;
   status: '사용' | '미사용';
+  // [NEW] Coordinates
+  x_pos?: number;
+  y_pos?: number;
 }
 
 export interface Detector {
@@ -132,6 +138,9 @@ export interface Detector {
   status: '사용' | '미사용'; // Renamed from usageStatus
   smsList?: string[]; // 화재 발생시 SMS (수정 시에만 관리)
   memo?: string;
+  // [NEW] Coordinates
+  x_pos?: number;
+  y_pos?: number;
 }
 
 export interface Transmitter {
@@ -143,6 +152,9 @@ export interface Transmitter {
   transmitterId: string; // '01' ~ '20'
   status: '사용' | '미사용'; // Renamed from usageStatus
   memo?: string;
+  // [NEW] Coordinates
+  x_pos?: number;
+  y_pos?: number;
 }
 
 export interface Alarm {
@@ -154,6 +166,9 @@ export interface Alarm {
   alarmId: string; // '01' ~ '20'
   status: '사용' | '미사용'; // Renamed from usageStatus
   memo?: string;
+  // [NEW] Coordinates
+  x_pos?: number;
+  y_pos?: number;
 }
 
 export interface Distributor {

@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { PageHeader, Pagination, Modal, Button } from '../components/CommonUI';
-import { AlertTriangle, WifiOff, ArrowRight, BatteryWarning, MapPin, Search, RefreshCw, Info, Map as MapIcon, X, RotateCcw } from 'lucide-react';
+import { PageHeader, Pagination, Button } from '../components/CommonUI';
+import { AlertTriangle, WifiOff, ArrowRight, BatteryWarning, MapPin, Search, RefreshCw, X, RotateCcw, Map as MapIcon } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { SIDO_LIST, getSigungu } from '../utils/addressData';
 import { MarketAPI, DashboardAPI } from '../services/api'; 
 import { Market } from '../types';
+import { VisualMapConsole } from '../components/VisualMapConsole';
 
 declare global {
   interface Window {
@@ -89,11 +90,11 @@ const DashboardListSection: React.FC<{
 };
 
 export const Dashboard: React.FC = () => {
-  // --- WIP Modal State ---
-  const [isWipModalOpen, setIsWipModalOpen] = useState(true);
-
   // --- Mobile Map State ---
   const [showMobileMap, setShowMobileMap] = useState(false);
+
+  // --- Visual Console State ---
+  const [selectedMapMarket, setSelectedMapMarket] = useState<Market | null>(null); 
 
   // --- Timer State ---
   const [now, setNow] = useState(new Date());
@@ -103,7 +104,6 @@ export const Dashboard: React.FC = () => {
   const [fireData, setFireData] = useState<any[]>([]);
   const [faultData, setFaultData] = useState<any[]>([]);
   const [commErrorData, setCommErrorData] = useState<any[]>([]);
-  // [수정] 통계 라벨 변경 (최근 화재 발생 -> 화재발생, 최근 고장 발생 -> 고장발생)
   const [stats, setStats] = useState<any[]>([
     { label: '화재발생', value: 0, color: 'bg-red-600', icon: <AlertTriangle size={20} /> },
     { label: '고장발생', value: 0, color: 'bg-orange-500', icon: <BatteryWarning size={20} /> },
@@ -111,11 +111,10 @@ export const Dashboard: React.FC = () => {
   ]);
   const [markets, setMarkets] = useState<Market[]>([]);
 
-  // --- Map State ---
+  // --- Map State (Kakao) ---
   const mapContainer = useRef<HTMLDivElement>(null);
   const [mapInstance, setMapInstance] = useState<any>(null);
   const [markers, setMarkers] = useState<any[]>([]);
-  const [infowindows, setInfowindows] = useState<any[]>([]);
   const [mapError, setMapError] = useState(false);
 
   const [selectedSido, setSelectedSido] = useState('');
@@ -141,10 +140,7 @@ export const Dashboard: React.FC = () => {
   useEffect(() => {
     const loadData = async () => {
         try {
-            // 1. 시장 목록 로드
             const allMarkets = await MarketAPI.getList();
-            
-            // 2. 대시보드 이벤트 데이터 로드 (화재, 고장, 통신)
             const dashboardData: any = await DashboardAPI.getData();
             
             setFireData(dashboardData.fireEvents || []);
@@ -152,7 +148,6 @@ export const Dashboard: React.FC = () => {
             setCommErrorData(dashboardData.commEvents || []);
             
             if (dashboardData.stats && dashboardData.stats.length === 3) {
-                // [수정] 통계 라벨 변경 적용 (API 데이터 로드 후에도 유지)
                 setStats([
                     { label: '화재발생', value: dashboardData.stats[0].value, color: 'bg-red-600', icon: <AlertTriangle size={20} /> },
                     { label: '고장발생', value: dashboardData.stats[1].value, color: 'bg-orange-500', icon: <BatteryWarning size={20} /> },
@@ -160,7 +155,6 @@ export const Dashboard: React.FC = () => {
                 ]);
             }
 
-            // 3. 시장 상태 업데이트 (이벤트 데이터 기반으로 시장 상태 결정)
             const fireMarkets = new Set(dashboardData.fireEvents?.map((e: any) => e.marketName));
             const errorMarkets = new Set([
                 ...(dashboardData.faultEvents?.map((e: any) => e.marketName) || []),
@@ -182,9 +176,9 @@ export const Dashboard: React.FC = () => {
         }
     };
     loadData();
-  }, [now]); // Timer reset triggers reload
+  }, [now]);
 
-  // 3. Map Initialization (With Retry Logic)
+  // 3. Map Initialization
   useEffect(() => {
     let intervalId: any;
     let timeoutId: any;
@@ -247,13 +241,9 @@ export const Dashboard: React.FC = () => {
   // 4. Map Markers Update (Material Icon Style)
   useEffect(() => {
     if (mapInstance) {
-        // 기존 마커(CustomOverlay) 및 인포윈도우 제거
         markers.forEach(m => m.setMap(null));
-        infowindows.forEach(iw => iw.close());
         setMarkers([]);
-        setInfowindows([]);
 
-        // 1. 필터링 로직 적용
         const filteredMarkets = markets.filter(market => {
             if (selectedSido && !market.address.includes(selectedSido)) return false;
             if (selectedSigungu && !market.address.includes(selectedSigungu)) return false;
@@ -261,8 +251,6 @@ export const Dashboard: React.FC = () => {
         });
 
         const newMarkers: any[] = [];
-        const newInfowindows: any[] = [];
-        
         const bounds = new window.kakao.maps.LatLngBounds();
 
         filteredMarkets.forEach((market) => {
@@ -276,35 +264,23 @@ export const Dashboard: React.FC = () => {
                 const isFire = market.status === 'Fire';
                 const isError = market.status === 'Error';
                 
-                // --- Material Icon Marker Styling ---
                 const iconName = isFire ? 'local_fire_department' : (isError ? 'warning_amber' : 'storefront');
                 const bgColor = isFire ? 'bg-red-600' : (isError ? 'bg-orange-500' : 'bg-slate-600');
                 const ringColor = isFire ? 'bg-red-500' : (isError ? 'bg-orange-400' : 'bg-slate-400');
                 
-                // HTML Content for Custom Overlay (Material Icon)
                 const content = document.createElement('div');
                 content.innerHTML = `
-                  <div class="relative flex flex-col items-center justify-center w-12 h-12 group cursor-pointer">
-                    <!-- Pulsing Effect for Alert (Only for Fire/Error) -->
+                  <div class="relative flex flex-col items-center justify-center w-12 h-12 group cursor-pointer" title="${market.name} (클릭하여 관제화면 진입)">
                     ${(isFire || isError) ? `<div class="absolute inset-0 rounded-full ${ringColor} opacity-75 animate-ping"></div>` : ''}
-                    
-                    <!-- Icon Container -->
                     <div class="relative z-10 w-10 h-10 rounded-full ${bgColor} border-2 border-white shadow-lg flex items-center justify-center text-white transition-transform transform group-hover:scale-110">
                         <span class="material-icons-round text-[22px] leading-none">${iconName}</span>
                     </div>
-
-                    <!-- Glassmorphism Tooltip (Hover) -->
                     <div class="absolute bottom-full mb-3 left-1/2 transform -translate-x-1/2 
                                 bg-slate-900/90 backdrop-blur-md text-white text-xs px-3 py-2 rounded-lg 
                                 border border-slate-600/50 shadow-2xl opacity-0 group-hover:opacity-100 
                                 transition-all duration-300 translate-y-2 group-hover:translate-y-0
                                 whitespace-nowrap pointer-events-none z-50 flex flex-col items-center min-w-[120px]">
                       <span class="font-bold text-[13px] tracking-wide">${market.name}</span>
-                      ${isFire ? '<span class="text-red-400 font-bold mt-1 flex items-center gap-1"><span class="material-icons-round text-sm">local_fire_department</span>화재발생</span>' : ''}
-                      ${isError ? '<span class="text-orange-400 font-bold mt-1 flex items-center gap-1"><span class="material-icons-round text-sm">warning</span>장애발생</span>' : ''}
-                      ${!isFire && !isError ? '<span class="text-emerald-400 text-[10px] mt-1 font-mono flex items-center gap-1"><span class="material-icons-round text-sm">check_circle</span>정상운영</span>' : ''}
-                      
-                      <!-- Tooltip Arrow -->
                       <div class="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-slate-800/90"></div>
                     </div>
                   </div>
@@ -317,48 +293,16 @@ export const Dashboard: React.FC = () => {
                     zIndex: isFire ? 100 : (isError ? 50 : 1)
                 });
 
-                // InfoWindow Content
-                const statusText = isFire ? '화재발생' : (isError ? '장애발생' : '정상운영');
-                const statusTextColor = isFire ? 'text-red-500' : (isError ? 'text-orange-500' : 'text-emerald-500');
-                
-                const iwContent = `
-                    <div style="padding:12px; min-width:180px; color:#1e293b; font-size:12px; border-radius:4px;">
-                        <strong style="font-size:14px; color:#0f172a;">${market.name}</strong>
-                        <div style="margin-top:4px; color:#475569;">
-                            담당자: ${market.managerName || '-'}${market.managerPhone ? `(${market.managerPhone})` : ''}
-                        </div>
-                        <div style="margin-top:6px; font-weight:bold;" class="${statusTextColor.replace('text-', 'text-color-')}">
-                            상태: <span style="color: ${isFire ? '#ef4444' : isError ? '#f97316' : '#10b981'}">${statusText}</span>
-                        </div>
-                    </div>
-                `;
-
-                const infowindow = new window.kakao.maps.InfoWindow({
-                    content: iwContent,
-                    removable: true,
-                    zIndex: 200
-                });
-
-                // Click Event
                 content.onclick = () => {
-                    newInfowindows.forEach(iw => iw.close());
-                    infowindow.setPosition(markerPosition);
-                    infowindow.open(mapInstance);
+                    setSelectedMapMarket(market);
                 };
-
-                if (isFire) {
-                    infowindow.setPosition(markerPosition);
-                    infowindow.open(mapInstance);
-                }
 
                 customOverlay.setMap(mapInstance);
                 newMarkers.push(customOverlay);
-                newInfowindows.push(infowindow);
             }
         });
 
         setMarkers(newMarkers);
-        setInfowindows(newInfowindows);
 
         if (newMarkers.length > 0 && (selectedSido || selectedSigungu)) {
             mapInstance.setBounds(bounds);
@@ -366,7 +310,7 @@ export const Dashboard: React.FC = () => {
     }
   }, [mapInstance, markets, selectedSido, selectedSigungu]); 
 
-  // 검색 및 리셋 관련 함수
+  // --- Handlers ---
   const isSearchActive = selectedSido !== '' || selectedSigungu !== '' || searchMarketMap !== '';
 
   const handleResetMap = () => {
@@ -382,27 +326,14 @@ export const Dashboard: React.FC = () => {
 
   const handlePanToMarket = (keyword: string) => {
       if (!mapInstance || !markets.length || !keyword.trim()) return;
-
-      const filteredMarkets = markets.filter(market => {
-          let match = true;
-          if (selectedSido && !market.address.includes(selectedSido)) match = false;
-          if (selectedSigungu && !market.address.includes(selectedSigungu)) match = false;
-          return match;
-      });
-
-      const target = filteredMarkets.find(m => m.name.includes(keyword));
-
+      const target = markets.find(m => m.name.includes(keyword));
       if (target && target.latitude && target.longitude) {
           const moveLatLon = new window.kakao.maps.LatLng(parseFloat(target.latitude), parseFloat(target.longitude));
           mapInstance.setLevel(3);
           mapInstance.panTo(moveLatLon);
-          
-          if (window.innerWidth < 1024) {
-              setShowMobileMap(true);
-          }
+          if (window.innerWidth < 1024) setShowMobileMap(true);
       } else {
-          alert('찾는 현장이 없습니다. 다시 입력하세요.');
-          setSearchMarketMap('');
+          alert('찾는 현장이 없습니다.');
       }
   };
 
@@ -421,7 +352,6 @@ export const Dashboard: React.FC = () => {
     <div className="flex flex-col h-full text-slate-200">
       <PageHeader title="대시보드" rightContent={timerContent} />
 
-      {/* Main Grid Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-[calc(100vh-160px)] min-h-[500px]">
         
         {/* Left Column: Lists */}
@@ -512,149 +442,111 @@ export const Dashboard: React.FC = () => {
           />
         </div>
 
-        {/* Right Column: Map */}
+        {/* Right Column: Map (Kakao Map) */}
         <div className={`
             bg-slate-900 rounded-xl overflow-hidden relative shadow-inner border border-slate-700 flex flex-col h-full
             ${showMobileMap ? 'fixed inset-0 z-50 m-0 rounded-none' : 'hidden lg:flex'}
         `}>
-          {/* Mobile Close Button */}
-          <div className="lg:hidden absolute top-4 left-4 z-50">
-             <button 
-                onClick={() => setShowMobileMap(false)}
-                className="bg-slate-800/90 text-white p-2 rounded-full border border-slate-600 shadow-lg backdrop-blur-sm active:scale-95 transition-transform"
-             >
-                <X size={24} />
-             </button>
-          </div>
+            {/* Mobile Close Button */}
+            <div className="lg:hidden absolute top-4 left-4 z-50">
+                <button onClick={() => setShowMobileMap(false)} className="bg-slate-800/90 text-white p-2 rounded-full border border-slate-600 shadow-lg">
+                    <X size={24} />
+                </button>
+            </div>
 
-          {/* Map Controls */}
-          <div className="absolute top-0 left-0 right-0 z-20 p-3 flex gap-2 bg-gradient-to-b from-slate-900/90 to-transparent pointer-events-none lg:pt-3 pt-16">
-             <div className="flex gap-2 w-full max-w-3xl pointer-events-auto">
-                <select 
-                    className="bg-slate-800 text-white text-xs border border-slate-600 rounded px-2 py-1.5 focus:outline-none focus:border-blue-500 shadow-lg appearance-none pr-6"
-                    style={{
-                        backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%23e2e8f0' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e")`,
-                        backgroundPosition: 'right 0.25rem center',
-                        backgroundRepeat: 'no-repeat',
-                        backgroundSize: '1.2em 1.2em'
-                    }}
-                    value={selectedSido}
-                    onChange={(e) => { setSelectedSido(e.target.value); setSelectedSigungu(''); }}
-                >
-                    <option value="">시/도 선택</option>
-                    {SIDO_LIST.map(sido => <option key={sido} value={sido}>{sido}</option>)}
-                </select>
-                
-                <select 
-                    className="bg-slate-800 text-white text-xs border border-slate-600 rounded px-2 py-1.5 focus:outline-none focus:border-blue-500 shadow-lg appearance-none pr-6"
-                    style={{
-                        backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%23e2e8f0' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e")`,
-                        backgroundPosition: 'right 0.25rem center',
-                        backgroundRepeat: 'no-repeat',
-                        backgroundSize: '1.2em 1.2em'
-                    }}
-                    value={selectedSigungu}
-                    onChange={(e) => setSelectedSigungu(e.target.value)}
-                    disabled={!selectedSido}
-                >
-                    <option value="">시/군/구 선택</option>
-                    {selectedSido && getSigungu(selectedSido).map(sgg => (
-                        <option key={sgg} value={sgg}>{sgg}</option>
-                    ))}
-                </select>
-
-                <div className="relative flex-1">
-                    <input 
-                        type="text" 
-                        placeholder="현장명 검색"
-                        className="w-full bg-slate-800 text-white text-xs border border-slate-600 rounded pl-2 pr-8 py-1.5 focus:outline-none focus:border-blue-500 shadow-lg placeholder-slate-500"
-                        value={searchMarketMap}
-                        onChange={(e) => setSearchMarketMap(e.target.value)}
-                        onKeyDown={(e) => {
-                            if(e.key === 'Enter') handlePanToMarket(searchMarketMap);
-                        }}
-                    />
-                    <Search size={14} className="absolute right-2 top-2 text-slate-400 cursor-pointer" onClick={() => handlePanToMarket(searchMarketMap)} />
-                </div>
-
-                {isSearchActive && (
-                    <button 
-                        onClick={handleResetMap}
-                        className="bg-blue-600 hover:bg-blue-500 text-white text-xs px-3 py-1.5 rounded shadow-lg flex items-center gap-1 transition-colors whitespace-nowrap"
-                        title="초기화"
+            {/* Map Controls */}
+            <div className="absolute top-0 left-0 right-0 z-20 p-3 flex gap-2 bg-gradient-to-b from-slate-900/90 to-transparent pointer-events-none lg:pt-3 pt-16">
+                <div className="flex gap-2 w-full max-w-3xl pointer-events-auto">
+                    <select 
+                        className="bg-slate-800 text-white text-xs border border-slate-600 rounded px-2 py-1.5 focus:outline-none focus:border-blue-500 shadow-lg"
+                        value={selectedSido}
+                        onChange={(e) => { setSelectedSido(e.target.value); setSelectedSigungu(''); }}
                     >
-                        <RotateCcw size={12} />
-                        <span className="hidden sm:inline">전체보기</span>
-                    </button>
-                )}
-             </div>
-          </div>
+                        <option value="">시/도 선택</option>
+                        {SIDO_LIST.map(sido => <option key={sido} value={sido}>{sido}</option>)}
+                    </select>
+                    
+                    <select 
+                        className="bg-slate-800 text-white text-xs border border-slate-600 rounded px-2 py-1.5 focus:outline-none focus:border-blue-500 shadow-lg"
+                        value={selectedSigungu}
+                        onChange={(e) => setSelectedSigungu(e.target.value)}
+                        disabled={!selectedSido}
+                    >
+                        <option value="">시/군/구 선택</option>
+                        {selectedSido && getSigungu(selectedSido).map(sgg => (
+                            <option key={sgg} value={sgg}>{sgg}</option>
+                        ))}
+                    </select>
 
-          {/* Map Container & Error Handling */}
-          <div ref={mapContainer} className="w-full h-full relative z-0">
-             {mapError ? (
-                <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-400 bg-slate-900 -z-10 p-6 text-center">
-                   <div className="bg-slate-800 p-6 rounded-lg border border-slate-700 max-w-md shadow-xl">
-                       <MapPin size={48} className="mx-auto mb-4 text-red-500 opacity-80" />
-                       <h3 className="text-lg font-bold text-white mb-2">지도를 불러올 수 없습니다.</h3>
-                       <p className="text-sm mb-4">
-                         설정된 도메인과 API 키가 일치하지 않거나,<br/>
-                         카카오 개발자 센터의 허용 도메인 설정이 누락되었습니다.
-                       </p>
-                       <button 
-                         onClick={() => window.location.reload()}
-                         className="flex items-center gap-2 mx-auto bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded text-sm transition-colors"
-                       >
-                         <RefreshCw size={14} /> 새로고침
-                       </button>
-                   </div>
+                    <div className="relative flex-1">
+                        <input 
+                            type="text" 
+                            placeholder="현장명 검색"
+                            className="w-full bg-slate-800 text-white text-xs border border-slate-600 rounded pl-2 pr-8 py-1.5 focus:outline-none focus:border-blue-500 shadow-lg"
+                            value={searchMarketMap}
+                            onChange={(e) => setSearchMarketMap(e.target.value)}
+                            onKeyDown={(e) => { if(e.key === 'Enter') handlePanToMarket(searchMarketMap); }}
+                        />
+                        <Search size={14} className="absolute right-2 top-2 text-slate-400 cursor-pointer" onClick={() => handlePanToMarket(searchMarketMap)} />
+                    </div>
+
+                    {isSearchActive && (
+                        <button onClick={handleResetMap} className="bg-blue-600 hover:bg-blue-500 text-white text-xs px-3 py-1.5 rounded shadow-lg flex items-center gap-1">
+                            <RotateCcw size={12} />
+                            <span className="hidden sm:inline">전체보기</span>
+                        </button>
+                    )}
                 </div>
-             ) : (
-                <div className="absolute inset-0 flex items-center justify-center text-slate-500 bg-slate-900 -z-10">
-                   <div className="text-center p-4">
-                      <MapPin size={48} className="mx-auto mb-4 opacity-50 animate-bounce" />
-                      <p className="mb-2 text-lg font-bold">지도 로딩 중...</p>
-                   </div>
-                </div>
-             )}
-          </div>
-          
-          <div className="absolute bottom-4 left-4 z-10 bg-slate-900/80 backdrop-blur border border-slate-600 px-3 py-1.5 rounded-full text-xs text-slate-300 shadow-lg flex items-center gap-2">
-             <span className="relative flex h-3 w-3">
-               <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${fireData.length > 0 ? 'bg-red-400' : 'bg-green-400'}`}></span>
-               <span className={`relative inline-flex rounded-full h-3 w-3 ${fireData.length > 0 ? 'bg-red-500' : 'bg-green-500'}`}></span>
-             </span>
-             실시간 관제 중 ({markets.length}개 시장 연동)
-          </div>
+            </div>
+
+            {/* Map Container */}
+            <div ref={mapContainer} className="w-full h-full relative z-0">
+                {mapError ? (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-400 bg-slate-900 -z-10 p-6 text-center">
+                        <MapPin size={48} className="mx-auto mb-4 text-red-500 opacity-80" />
+                        <h3 className="text-lg font-bold text-white mb-2">지도를 불러올 수 없습니다.</h3>
+                        <button onClick={() => window.location.reload()} className="flex items-center gap-2 mx-auto bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded text-sm mt-4">
+                            <RefreshCw size={14} /> 새로고침
+                        </button>
+                    </div>
+                ) : (
+                    <div className="absolute inset-0 flex items-center justify-center text-slate-500 bg-slate-900 -z-10">
+                        <div className="text-center p-4">
+                            <MapPin size={48} className="mx-auto mb-4 opacity-50 animate-bounce" />
+                            <p className="mb-2 text-lg font-bold">지도 로딩 중...</p>
+                        </div>
+                    </div>
+                )}
+            </div>
+            
+            <div className="absolute bottom-4 left-4 z-10 bg-slate-900/80 backdrop-blur border border-slate-600 px-3 py-1.5 rounded-full text-xs text-slate-300 shadow-lg flex items-center gap-2">
+                <span className="relative flex h-3 w-3">
+                <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${fireData.length > 0 ? 'bg-red-400' : 'bg-green-400'}`}></span>
+                <span className={`relative inline-flex rounded-full h-3 w-3 ${fireData.length > 0 ? 'bg-red-500' : 'bg-green-500'}`}></span>
+                </span>
+                실시간 관제 중 ({markets.length}개 시장 연동)
+            </div>
         </div>
       </div>
 
       {/* Mobile Floating Map Button */}
-      {!showMobileMap && (
+      {!showMobileMap && !selectedMapMarket && (
         <button
             onClick={() => setShowMobileMap(true)}
             className="lg:hidden fixed bottom-6 right-6 z-40 bg-blue-600 text-white p-4 rounded-full shadow-2xl border-2 border-blue-400 hover:bg-blue-500 transition-transform active:scale-95 animate-bounce-slow"
-            aria-label="지도 보기"
         >
             <MapIcon size={28} />
         </button>
       )}
 
-      {/* WIP Modal */}
-      <Modal 
-        isOpen={isWipModalOpen} 
-        onClose={() => setIsWipModalOpen(false)} 
-        title="시스템 알림"
-        width="max-w-sm"
-        icon={<Info size={24} className="text-blue-400" />}
-      >
-         <div className="flex flex-col items-center justify-center p-4 gap-6">
-            <div className="text-lg font-bold text-white">작업중입니다</div>
-            <Button onClick={() => setIsWipModalOpen(false)} className="w-full">
-               확인
-            </Button>
-         </div>
-      </Modal>
+      {/* --- Visual Console Modal (Full Screen) --- */}
+      {selectedMapMarket && (
+          <VisualMapConsole 
+             market={selectedMapMarket}
+             onClose={() => setSelectedMapMarket(null)}
+             initialMode="monitoring"
+          />
+      )}
     </div>
   );
 };
