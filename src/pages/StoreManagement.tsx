@@ -96,7 +96,7 @@ export const StoreManagement: React.FC = () => {
 
   const handleEdit = (store: Store) => {
     setSelectedStore(store);
-    // store 객체에는 이미 market_id가 포함되어 있음 (StoreAPI.getList에서 반환됨)
+    // store 객체에는 이미 market_id가 포함되어 있음
     setFormData({ ...store });
     
     // 화면 표시용 시장 정보 설정
