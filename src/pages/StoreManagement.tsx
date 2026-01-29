@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { 
   PageHeader, SearchFilterBar, InputGroup, SelectGroup,
   Button, DataTable, Pagination, ActionBar, FormSection, FormRow, Column, Modal, UI_STYLES, AddressInput,
-  formatPhoneNumber, handlePhoneKeyDown, StatusBadge, StatusRadioGroup // Import common components
+  formatPhoneNumber, handlePhoneKeyDown, StatusBadge, StatusRadioGroup
 } from '../components/CommonUI';
 import { Store, Market } from '../types';
 import { StoreAPI, MarketAPI } from '../services/api';
@@ -41,11 +41,11 @@ export const StoreManagement: React.FC = () => {
   const [marketList, setMarketList] = useState<Market[]>([]);
   const [marketSearchName, setMarketSearchName] = useState('');
   const [marketModalPage, setMarketModalPage] = useState(1);
-  const [selectedMarketForForm, setSelectedMarketForForm] = useState<Market | null>(null); // For display
+  const [selectedMarketForForm, setSelectedMarketForForm] = useState<Market | null>(null);
 
   // --- Excel Upload Data ---
   const [excelData, setExcelData] = useState<Store[]>([]);
-  const [excelMarket, setExcelMarket] = useState<Market | null>(null); // Market selected for bulk upload
+  const [excelMarket, setExcelMarket] = useState<Market | null>(null);
 
   // --- Initial Data Load ---
   const fetchStores = async (overrides?: { address?: string, marketName?: string, storeName?: string }) => {
@@ -96,8 +96,10 @@ export const StoreManagement: React.FC = () => {
 
   const handleEdit = (store: Store) => {
     setSelectedStore(store);
+    // store 객체에는 이미 market_id가 포함되어 있음 (StoreAPI.getList에서 반환됨)
     setFormData({ ...store });
-    // Set market info for display (using market_id)
+    
+    // 화면 표시용 시장 정보 설정
     setSelectedMarketForForm({ id: store.market_id, name: store.marketName || '' } as Market);
     setStoreImageFile(null);
     if (fileInputRef.current) fileInputRef.current.value = '';
@@ -192,7 +194,7 @@ export const StoreManagement: React.FC = () => {
   const handleMarketSelect = (market: Market) => {
     if (view === 'form') {
       setSelectedMarketForForm(market);
-      setFormData({ ...formData, market_id: market.id }); // [CHANGED] market_id
+      setFormData({ ...formData, market_id: market.id }); // [FIXED] Use market_id
     } else if (view === 'excel') {
       setExcelMarket(market);
     }
@@ -203,7 +205,8 @@ export const StoreManagement: React.FC = () => {
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.market_id) { alert('소속 시장을 선택해주세요.'); return; } // [CHANGED] market_id
+    // [FIXED] Check market_id instead of marketId
+    if (!formData.market_id) { alert('소속 시장을 선택해주세요.'); return; } 
     if (!formData.name) { alert('상가명을 입력해주세요.'); return; }
     if (!formData.status) { alert('상가 사용여부를 선택해주세요.'); return; }
 
@@ -269,7 +272,7 @@ export const StoreManagement: React.FC = () => {
         // Map excel rows to Store objects
         const parsedStores: Store[] = data.map((row: any, idx: number) => ({
           id: 0, 
-          market_id: excelMarket.id, // [CHANGED] market_id
+          market_id: excelMarket.id, // [FIXED] Use market_id
           marketName: excelMarket.name,
           name: row['상가명'] || `상가_${idx+1}`,
           managerName: row['대표자명'] || row['대표자'] || '',
@@ -492,7 +495,6 @@ export const StoreManagement: React.FC = () => {
   }
 
   // --- View: List/Excel Omitted for Brevity (Similar Updates Applied) ---
-  // ... (Excel logic and List view logic similar to above with market_id update) ...
   return (
     <>
       <PageHeader title="기기 관리" />
